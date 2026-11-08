@@ -220,6 +220,100 @@ export const PathCommandSchema = z.discriminatedUnion('type', [
 ]);
 export type PathCommand = z.infer<typeof PathCommandSchema>;
 
+export const LayoutSchema = z
+  .object({
+    mode: z.enum(['NONE', 'HORIZONTAL', 'VERTICAL']).default('NONE'),
+    padding: z
+      .object({
+        top: z.number().default(0),
+        right: z.number().default(0),
+        bottom: z.number().default(0),
+        left: z.number().default(0),
+      })
+      .strict()
+      .prefault({}),
+    gap: z.number().default(0),
+    /** Counter-axis alignment of children. */
+    alignItems: z.enum(['START', 'CENTER', 'END']).default('START'),
+    /** Primary-axis distribution when the frame is larger than its content (FIXED sizing). */
+    justifyContent: z.enum(['START', 'CENTER', 'END', 'SPACE_BETWEEN']).default('START'),
+    primarySizing: z.enum(['FIXED', 'HUG']).default('HUG'),
+    counterSizing: z.enum(['FIXED', 'HUG']).default('HUG'),
+  })
+  .strict();
+export type Layout = z.infer<typeof LayoutSchema>;
+
+/** How a node behaves inside an auto-layout parent. */
+export const LayoutChildSchema = z
+  .object({
+    primary: z.enum(['FIXED', 'FILL']).default('FIXED'),
+    counter: z.enum(['FIXED', 'FILL']).default('FIXED'),
+  })
+  .strict();
+export type LayoutChild = z.infer<typeof LayoutChildSchema>;
+
+export const TransitionSchema = z
+  .object({
+    type: z
+      .enum([
+        'INSTANT',
+        'DISSOLVE',
+        'SLIDE_LEFT',
+        'SLIDE_RIGHT',
+        'SLIDE_UP',
+        'SLIDE_DOWN',
+        'PUSH_LEFT',
+        'PUSH_RIGHT',
+        'SMART',
+      ])
+      .default('INSTANT'),
+    durationMs: z.number().min(0).max(10_000).default(300),
+    easing: z.enum(['LINEAR', 'EASE_IN', 'EASE_OUT', 'EASE_IN_OUT']).default('EASE_OUT'),
+  })
+  .strict();
+export type Transition = z.infer<typeof TransitionSchema>;
+
+export const InteractionActionSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      type: z.literal('NAVIGATE'),
+      targetId: z.string().min(1),
+      transition: TransitionSchema.prefault({}),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('OPEN_OVERLAY'),
+      targetId: z.string().min(1),
+      transition: TransitionSchema.prefault({}),
+      closeOnOutsideClick: z.boolean().default(true),
+    })
+    .strict(),
+  z.object({ type: z.literal('BACK'), transition: TransitionSchema.prefault({}) }).strict(),
+  z
+    .object({ type: z.literal('CLOSE_OVERLAY'), transition: TransitionSchema.prefault({}) })
+    .strict(),
+  z
+    .object({
+      type: z.literal('SCROLL_TO'),
+      targetId: z.string().min(1),
+      transition: TransitionSchema.prefault({}),
+    })
+    .strict(),
+  z.object({ type: z.literal('OPEN_URL'), url: z.string().url() }).strict(),
+]);
+export const InteractionSchema = z
+  .object({
+    trigger: z.enum(['CLICK', 'HOVER', 'DRAG', 'AFTER_DELAY', 'KEY']).default('CLICK'),
+    delayMs: z.number().min(0).default(0),
+    key: z.string().optional(),
+    action: InteractionActionSchema,
+  })
+  .strict();
+export type Interaction = z.infer<typeof InteractionSchema>;
+export type InteractionInput = z.input<typeof InteractionSchema>;
+export type InteractionAction = z.infer<typeof InteractionActionSchema>;
+
 export const ConstraintsSchema = z
   .object({
     horizontal: z.enum(['LEFT', 'RIGHT', 'CENTER', 'STRETCH', 'SCALE']).default('LEFT'),
@@ -244,12 +338,29 @@ export const NODE_TYPES = [
   'TEXT',
   'IMAGE',
   'VECTOR',
+  'COMPONENT',
+  'COMPONENT_SET',
+  'INSTANCE',
 ] as const;
 export const NodeTypeSchema = z.enum(NODE_TYPES);
 export type NodeType = z.infer<typeof NodeTypeSchema>;
 
 /** Node types that may own children. */
-export const CONTAINER_TYPES: ReadonlySet<NodeType> = new Set(['PAGE', 'FRAME', 'GROUP']);
+export const CONTAINER_TYPES: ReadonlySet<NodeType> = new Set([
+  'PAGE',
+  'FRAME',
+  'GROUP',
+  'COMPONENT',
+  'COMPONENT_SET',
+  'INSTANCE',
+]);
+/** Frame-like containers: clip, have a size and render fills. */
+export const FRAME_LIKE_TYPES: ReadonlySet<NodeType> = new Set([
+  'FRAME',
+  'COMPONENT',
+  'COMPONENT_SET',
+  'INSTANCE',
+]);
 
 const baseProps = {
   id: z.string().min(1),
@@ -260,6 +371,23 @@ const baseProps = {
   size: SizeSchema.default({ width: 0, height: 0 }),
   style: StyleSchema.prefault({}),
   constraints: ConstraintsSchema.prefault({}),
+  layoutChild: LayoutChildSchema.prefault({}),
+  /** Prototype interactions that start from this node. */
+  interactions: z.array(InteractionSchema).default([]),
+  minSize: z
+    .object({
+      width: z.number().nullable().default(null),
+      height: z.number().nullable().default(null),
+    })
+    .strict()
+    .prefault({}),
+  maxSize: z
+    .object({
+      width: z.number().nullable().default(null),
+      height: z.number().nullable().default(null),
+    })
+    .strict()
+    .prefault({}),
   metadata: z.record(z.string(), z.unknown()).default({}),
 };
 
@@ -272,7 +400,13 @@ export const PagePropsSchema = z
   })
   .strict();
 export const FramePropsSchema = z
-  .object({ ...baseProps, type: z.literal('FRAME'), clipsContent: z.boolean().default(true) })
+  .object({
+    ...baseProps,
+    type: z.literal('FRAME'),
+    clipsContent: z.boolean().default(true),
+    layout: LayoutSchema.prefault({}),
+    overflow: z.enum(['NONE', 'VERTICAL', 'HORIZONTAL', 'BOTH']).default('NONE'),
+  })
   .strict();
 export const GroupPropsSchema = z.object({ ...baseProps, type: z.literal('GROUP') }).strict();
 export const RectanglePropsSchema = z
@@ -314,6 +448,50 @@ export const ImagePropsSchema = z
 export const VectorPropsSchema = z
   .object({ ...baseProps, type: z.literal('VECTOR'), path: z.array(PathCommandSchema).default([]) })
   .strict();
+/** A reusable master. Variant properties (e.g. { state: 'hover' }) matter inside a component set. */
+export const ComponentPropsSchema = z
+  .object({
+    ...baseProps,
+    type: z.literal('COMPONENT'),
+    clipsContent: z.boolean().default(true),
+    layout: LayoutSchema.prefault({}),
+    description: z.string().default(''),
+    variantProps: z.record(z.string(), z.string()).default({}),
+  })
+  .strict();
+/** Groups variant components; its children are COMPONENT nodes. */
+export const ComponentSetPropsSchema = z
+  .object({
+    ...baseProps,
+    type: z.literal('COMPONENT_SET'),
+    clipsContent: z.boolean().default(false),
+    variantAxes: z.array(z.string()).default([]),
+    layout: LayoutSchema.prefault({}),
+  })
+  .strict();
+/** An instance renders its master's children (projected at runtime) with per-node overrides. */
+export const InstancePropsSchema = z
+  .object({
+    ...baseProps,
+    type: z.literal('INSTANCE'),
+    clipsContent: z.boolean().default(true),
+    layout: LayoutSchema.prefault({}),
+    componentId: z.string().min(1),
+    /** Patches keyed by the master's node id, applied to the projected copy. */
+    overrides: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
+    /** Set when the master came from a shared library. */
+    library: z
+      .object({
+        workspaceId: z.string(),
+        sourceDocumentId: z.string(),
+        componentId: z.string(),
+        version: z.number().int(),
+      })
+      .strict()
+      .nullable()
+      .default(null),
+  })
+  .strict();
 
 export const NodePropsSchema = z.discriminatedUnion('type', [
   PagePropsSchema,
@@ -327,6 +505,9 @@ export const NodePropsSchema = z.discriminatedUnion('type', [
   TextPropsSchema,
   ImagePropsSchema,
   VectorPropsSchema,
+  ComponentPropsSchema,
+  ComponentSetPropsSchema,
+  InstancePropsSchema,
 ]);
 
 /** A node's own properties, independent of where it sits in the hierarchy. */
@@ -346,6 +527,9 @@ export type StarProps = NodePropsOf<'STAR'>;
 export type TextProps = NodePropsOf<'TEXT'>;
 export type ImageProps = NodePropsOf<'IMAGE'>;
 export type VectorProps = NodePropsOf<'VECTOR'>;
+export type ComponentProps = NodePropsOf<'COMPONENT'>;
+export type ComponentSetProps = NodePropsOf<'COMPONENT_SET'>;
+export type InstanceProps = NodePropsOf<'INSTANCE'>;
 
 /* ----------------------------------------------------------------------------------------------
  * Serialized (nested) format
@@ -359,6 +543,9 @@ const NodeJSONSchema: z.ZodType<NodeJSON> = z.lazy(() =>
       PagePropsSchema.extend({ children: z.array(NodeJSONSchema).default([]) }).strict(),
       FramePropsSchema.extend({ children: z.array(NodeJSONSchema).default([]) }).strict(),
       GroupPropsSchema.extend({ children: z.array(NodeJSONSchema).default([]) }).strict(),
+      ComponentPropsSchema.extend({ children: z.array(NodeJSONSchema).default([]) }).strict(),
+      ComponentSetPropsSchema.extend({ children: z.array(NodeJSONSchema).default([]) }).strict(),
+      InstancePropsSchema.extend({ children: z.array(NodeJSONSchema).default([]) }).strict(),
       RectanglePropsSchema,
       EllipsePropsSchema,
       LinePropsSchema,

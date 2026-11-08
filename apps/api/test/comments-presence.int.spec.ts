@@ -20,6 +20,7 @@ function connect(
     const waiters: ((m: PresenceServerMessage) => void)[] = [];
     ws.on('message', (raw) => {
       const m = JSON.parse(raw.toString()) as PresenceServerMessage;
+      if (m.type === 'sync' || m.type === 'update') return; // realtime state is covered by collab.int.spec.ts
       const w = waiters.shift();
       if (w) w(m);
       else queue.push(m);

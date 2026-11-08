@@ -7,9 +7,9 @@ export const ADMIN_FINAL_PASSWORD = 'Admin-Password-2026!';
 
 function passwordFromDockerLogs(): string | null {
   try {
-    // eslint-disable-next-line no-control-regex
     const logs = execSync('docker compose logs api --no-log-prefix', { stdio: 'pipe' })
       .toString()
+      // eslint-disable-next-line no-control-regex
       .replace(/\x1b\[[0-9;]*m/g, '');
     const m = /Password:\s+(\S+)/.exec(logs);
     return m && m[1] !== '(from' ? (m[1] as string) : null;

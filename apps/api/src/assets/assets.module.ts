@@ -1,5 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
+import { AssetsController } from './assets.controller';
+import { AssetsService } from './assets.service';
 
-/** Placeholder: Assets endpoints are planned (see docs/api/README.md). */
-@Module({})
+@Global()
+@Module({ controllers: [AssetsController], providers: [AssetsService], exports: [AssetsService] })
 export class AssetsModule {}

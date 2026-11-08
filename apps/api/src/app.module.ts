@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AssetsModule } from './assets/assets.module';
+import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { BootstrapService } from './bootstrap/bootstrap.service';
 import { CollaborationModule } from './collaboration/collaboration.module';
 import { CommentsModule } from './comments/comments.module';
@@ -11,6 +13,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { ExportsModule } from './exports/exports.module';
 import { FoldersModule } from './folders/folders.module';
 import { HealthModule } from './health/health.module';
+import { LibrariesModule } from './libraries/libraries.module';
 import { MembershipsModule } from './memberships/memberships.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -30,6 +33,8 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
       validate: validateEnv,
     }),
     PrismaModule,
+    AuditModule,
+    MetricsModule,
     HealthModule,
     AuthModule,
     UsersModule,
@@ -39,6 +44,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     FoldersModule,
     DocumentsModule,
     ExportsModule,
+    LibrariesModule,
     AssetsModule,
     CommentsModule,
     VersionsModule,

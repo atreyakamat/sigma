@@ -7,14 +7,19 @@ original master instruction. Changes from v1 are summarised at the end.
 
 ## 0. Current state (update this section at every milestone)
 
-| Item                                           | State                                                                                                          |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Milestone 0 Foundation                         | Done                                                                                                           |
-| Milestone 1 Engine foundation                  | Done                                                                                                           |
-| Milestone 2 Editing                            | Done (local-first persistence included)                                                                        |
-| Milestone 3 Persistence (accounts, API, cloud) | Next                                                                                                           |
-| Quality gates                                  | `pnpm verify` (typecheck, lint, unit tests, build) · `pnpm test:e2e` · `pnpm --filter @sigma/benchmarks bench` |
-| Known limits                                   | see `docs/EDITOR_ENGINE.md` → Known limitations, `docs/engine/benchmarks.md`                                   |
+| Item                                          | State                                                                                                                              |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Milestone 0 Foundation                        | Done                                                                                                                               |
+| Milestone 1 Engine foundation                 | Done                                                                                                                               |
+| Milestone 2 Editing                           | Done (local-first persistence included)                                                                                            |
+| Milestone 3 Persistence (accounts, API, RBAC) | Done 2026-11-08 (self-hosted, admin-managed users, Docker stack)                                                                   |
+| Milestone 4 Advanced graphics                 | Done 2026-11-08 (pen/pencil, vector editing, booleans, SVG import, gradient UI; PDF export deferred)                               |
+| Milestone 5 Design systems                    | Done 2026-11-08 (components, variants, overrides, auto layout, constraints, libraries)                                             |
+| Milestone 6 Collaboration                     | Done 2026-11-08 (Yjs rooms over the presence socket, presence, locks, versions; ADR-0012)                                          |
+| Milestone 7 Prototyping                       | Done 2026-11-08 (interactions, transitions, connections overlay, preview player)                                                   |
+| Milestone 8 Production readiness              | In progress: 2FA, sessions, audit log, metrics, HTTPS profile, backups done; PDF export, share links, multi-instance realtime open |
+| Quality gates                                 | `pnpm verify` (typecheck, lint, unit tests, build) · `pnpm test:e2e` · `pnpm --filter @sigma/benchmarks bench`                     |
+| Known limits                                  | see `docs/EDITOR_ENGINE.md` → Known limitations, `docs/engine/benchmarks.md`                                                       |
 
 Before any work: read `README.md`, `docs/ARCHITECTURE.md`, the relevant ADRs in `docs/decisions/`,
 and `CHANGELOG.md`. Then run `pnpm verify`. If it is red, fix that first.
@@ -82,7 +87,7 @@ Hard rules:
 
 ```
 apps/web                 UI           depends on: engine, tools, import-export, document, renderer
-apps/api                 backend      depends on: validation (planned), prisma
+apps/api                 backend      depends on: validation, document, collab, renderer, import-export, prisma
 packages/shared          ids, emitter
 packages/geometry        → shared
 packages/document        → shared, geometry
@@ -116,8 +121,9 @@ Legend: ✅ implemented · 🔜 planned (milestone in brackets)
 ### 5.1 Document model
 
 ✅ Versioned strict schema (v1) with migrations registry · pages, frames, groups, rectangles,
-ellipses, lines, polygons, stars, text, images, vector paths · stable random ids · flat scene graph
-with `parentId`/`childIds`, nested JSON on disk · 🔜 components and instances (M5).
+ellipses, lines, polygons, stars, text, images, vector paths, components, component sets,
+instances with overrides, auto layout and constraints, prototype interactions · stable random ids ·
+flat scene graph with `parentId`/`childIds`, nested JSON on disk.
 
 ### 5.2 Scene graph
 
@@ -127,8 +133,8 @@ container validation · batched change events · world matrix cache · group bou
 ### 5.3 Geometry
 
 ✅ vec2, mat2d, rect, point-in-rect/ellipse/polygon, segment distance, line/segment intersection,
-Bézier point/split/flatten/bounds/length, regular polygon and star points, grid spatial index.
-🔜 path boolean operations and clipping (M4).
+Bézier point/split/flatten/bounds/length, regular polygon and star points, grid spatial index,
+SVG path parsing/serialising, path booleans (`polygon-clipping`), simplify and smooth.
 
 ### 5.4 Rendering
 
@@ -138,13 +144,14 @@ benchmarks require it.
 
 ### 5.5 Input
 
-✅ pointer events with capture, double-click, wheel pan/zoom, pinch (ctrl+wheel), keyboard with
-modifier normalisation, editable-element guard, space-to-pan, middle-button pan.
+✅ pointer events with capture, double-click, wheel pan/zoom, pinch (ctrl+wheel and two-finger
+touch), two-finger pan, keyboard with modifier normalisation, editable-element guard, space-to-pan,
+middle-button pan.
 
 ### 5.6 Tools
 
-✅ select, hand, frame, rectangle, ellipse, line, polygon, star, text, image — one interface, one
-registry, one dispatcher. 🔜 pen, pencil (M4).
+✅ select, hand, frame, rectangle, ellipse, line, polygon, star, text, image, pen, pencil, vector
+edit — one interface, one registry, one dispatcher.
 
 ### 5.7 Selection and transformation
 
@@ -159,24 +166,24 @@ SetTransforms), Group, Ungroup, Batch — each with validate/execute/undo/affect
 
 ### 5.9 History
 
-✅ undo/redo, merge by key within a window, boundaries, transactions, limit, revision tracking.
-🔜 collaborative undo scoping (M6).
+✅ undo/redo, merge by key within a window, boundaries, nested transactions, `attach` for glued
+follow-ups, limit, revision tracking. Undo is per user in realtime sessions (ADR-0012).
 
 ---
 
 ## 6. Design features order
 
-Initial graphics ✅ → styling ✅ (gradients render/export; gradient _editing UI_ is 🔜) →
-typography ✅ (font family/weight/size/line height/letter spacing/align/decoration/transform/wrap)
-→ vector editing 🔜 (M4) → components 🔜 (M5) → auto layout 🔜 (M5).
+Initial graphics ✅ → styling ✅ (incl. gradient editing UI) → typography ✅ → vector editing ✅ →
+components ✅ → auto layout ✅ → prototyping ✅.
 
 ---
 
 ## 7. Frontend interface
 
 Five regions ✅: top toolbar, left sidebar (layers, pages, assets), canvas, right inspector,
-bottom status bar. Dashboard ✅ (recent files, create/rename/duplicate/delete/import). 🔜 sign-in,
-registration, workspace selector, projects, folders, templates, team members, settings (M3).
+bottom status bar. Dashboard ✅ (recent files, create/rename/duplicate/delete/import). ✅ sign-in
+(with 2FA step), workspaces, projects, members, admin users, security (sessions, 2FA), audit log,
+API tokens, language switch (en/hi), tablet layout. 🔜 folders UI, templates.
 
 Rule: every visible control performs its action. If a feature is not implemented, the control does
 not exist (or explains, in one sentence, when it arrives — as the Assets tab does today).
@@ -188,7 +195,8 @@ not exist (or explains, in one sentence, when it arrives — as the Assets tab d
 ✅ serialization, deserialization, schema validation, autosave (600 ms debounce) to the API with
 revision-based conflict detection and a reload banner, save status, recovery after refresh,
 document reopening, `.sigma.json` import/export (ADR-0010). ✅ versions (named + hourly automatic), diff and restore; offline queue with recovery; presence
-`saved` refresh. 🔜 snapshots in object storage, Yjs update log.
+`saved` refresh. ✅ realtime rooms persisted into `documents.content` (ADR-0012; no separate
+update log by decision). Server-side thumbnails.
 
 ---
 
@@ -201,26 +209,28 @@ document reopening, `.sigma.json` import/export (ADR-0010). ✅ versions (named 
   from `@sigma/validation`; `PermissionsService.assert` on every protected route; bootstrap admin;
   22 integration tests against PostgreSQL; Vite-bundled production build; Docker image that migrates
   on start. ✅ comments, versions, server-side SVG/PNG export, design tokens, frames listing, API tokens,
-  presence WebSocket. 🔜 assets/uploads, share links.
+  presence WebSocket, assets (uploads, signed URLs, S3 or disk), libraries, 2FA, sessions, audit log,
+  metrics, realtime rooms. 38 integration tests. 🔜 share links.
 
 ---
 
 ## 10. Collaboration
 
 ✅ Presence (avatars, cursors, selections), `saved` notifications, frame locks enforced on save,
-review states, comments. 🔜 CRDT co-editing:
-
-Yjs `Y.Map` mirroring the flat scene graph; WebSocket transport; awareness (cursors, selection,
-presence); persisted updates in `document_updates`, compaction to snapshots; reconnection with
-state vectors; access validated before joining. Local UI state is never synchronised.
+review states, comments. ✅ CRDT co-editing (ADR-0012): `@sigma/collab` mirrors the flat scene
+graph into a Yjs `Y.Map`, deterministic hierarchy reconciliation, transport over the presence
+WebSocket, access validated on join (viewers read-only), server rooms persisted into
+`documents.content`, resync after HTTP replacements, offline merge on reconnect. Local UI state is
+never synchronised. 🔜 multi-instance relay (Redis), persisted update log if history replay is
+ever needed.
 
 ---
 
 ## 11. Import and export
 
 ✅ PNG/JPEG/WebP/GIF/SVG image import with magic-byte validation and size cap; PNG export at any
-scale; SVG export; JSON document export/import. 🔜 PDF export (M4), SVG _import_ as vector nodes
-(M4), legally-safe interoperability research (later).
+scale; SVG export; SVG import as vector nodes; JSON document export/import; design tokens. 🔜 PDF
+export, legally-safe interoperability research (later).
 
 ---
 
@@ -228,7 +238,8 @@ scale; SVG export; JSON document export/import. 🔜 PDF export (M4), SVG _impor
 
 See `docs/SECURITY.md`. Implemented: scrypt hashing, hashed server-side sessions in secure cookies,
 role authorization on every route, login rate limiting, CSRF origin check, strict validation,
-upload sniffing, env validation, no secrets in client code. 🔜 signed asset URLs, audit log, 2FA.
+upload sniffing, env validation, no secrets in client code, signed asset URLs, audit log, TOTP 2FA,
+session revocation, metrics, optional HTTPS edge. 🔜 share links, password breach checks.
 
 ---
 
@@ -237,11 +248,14 @@ upload sniffing, env validation, no secrets in client code. 🔜 signed asset UR
 - Unit: every package (`pnpm test`). Every command has execute+undo tests. Geometry, schema,
   scene graph, hit testing, transforms, snapping, keymap, tools (synthetic pointer events) are
   covered.
-- E2E: `pnpm test:e2e` runs the MVP flow (create, draw, edit, undo/redo, group, autosave, refresh,
-  reopen, export PNG + SVG) and zoom/pan/delete.
+- E2E: `pnpm test:e2e` runs 20 scenarios against the Docker stack: the MVP flow, zoom/pan/delete,
+  accounts and RBAC, onboarding/palette, history/versions, comments, locks, presence, tokens,
+  realtime convergence in two browsers, prototype preview, gradient editor, asset upload, 2FA and
+  sessions, audit log, language switch, tablet layout.
 - Benchmarks: `tests/benchmarks` — 100/1k/10k nodes, headless and browser. Record results in
   `docs/engine/` with a date. Never state a performance target is met without a recorded run.
-- Collaboration (M6): two independent browser contexts must converge.
+- Collaboration: two independent browser contexts converge (`platform.spec.ts`), and the
+  `@sigma/collab` unit tests cover concurrent inserts and delete-vs-edit races.
 
 ---
 
@@ -250,17 +264,17 @@ upload sniffing, env validation, no secrets in client code. 🔜 signed asset UR
 Each milestone has entry criteria, deliverables and exit criteria. Do not start a milestone whose
 entry criteria fail.
 
-| #   | Milestone            | Entry             | Exit (all must pass)                                                                                                                  |
-| --- | -------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 0   | Foundation           | —                 | `pnpm verify` green, Docker Compose validates, docs skeleton ✅                                                                       |
-| 1   | Engine foundation    | M0                | rect/ellipse/select/move/resize/delete/zoom/pan headless tests ✅                                                                     |
-| 2   | Editing              | M1                | layers, text, images, styling, multi-select, groups, commands, undo/redo, shortcuts, e2e flow ✅                                      |
-| 3   | Persistence          | M2                | register/login, workspace, project, document CRUD via API, autosave to API, assets upload to S3, e2e against API, authorization tests |
-| 4   | Advanced graphics    | M3                | pen/pencil, vector editing, gradient UI, boolean ops, SVG import, PDF export, tests                                                   |
-| 5   | Design systems       | M4                | components, instances, overrides, variants, auto layout, constraints, libraries                                                       |
-| 6   | Collaboration        | M3 (+5 preferred) | Yjs sync, presence, cursors, persistence, reconnection, 2-browser convergence test, version history                                   |
-| 7   | Prototyping          | M5                | connections, interactions, transitions, preview player                                                                                |
-| 8   | Production readiness | M6, M7            | security + performance audits, monitoring, deployment, beta                                                                           |
+| #   | Milestone            | Entry             | Exit (all must pass)                                                                                                                                 |
+| --- | -------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | Foundation           | —                 | `pnpm verify` green, Docker Compose validates, docs skeleton ✅                                                                                      |
+| 1   | Engine foundation    | M0                | rect/ellipse/select/move/resize/delete/zoom/pan headless tests ✅                                                                                    |
+| 2   | Editing              | M1                | layers, text, images, styling, multi-select, groups, commands, undo/redo, shortcuts, e2e flow ✅                                                     |
+| 3   | Persistence          | M2                | admin-managed accounts, workspace, project, document CRUD via API, autosave to API, assets upload (disk/S3), e2e against API, authorization tests ✅ |
+| 4   | Advanced graphics    | M3                | pen/pencil, vector editing, gradient UI, boolean ops, SVG import ✅ (PDF export deferred to M8), tests                                               |
+| 5   | Design systems       | M4                | components, instances, overrides, variants, auto layout, constraints, libraries ✅                                                                   |
+| 6   | Collaboration        | M3 (+5 preferred) | Yjs sync, presence, cursors, persistence, reconnection, 2-browser convergence test, version history ✅                                               |
+| 7   | Prototyping          | M5                | connections, interactions, transitions, preview player ✅                                                                                            |
+| 8   | Production readiness | M6, M7            | security + performance audits, monitoring, deployment, beta (2FA, audit, metrics, HTTPS, backups ✅; audits, PDF, share links open)                  |
 
 ---
 

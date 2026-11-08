@@ -23,14 +23,20 @@ import type {
   Stroke,
   TextStyle,
 } from '@sigma/document';
-import { COLORS } from '@sigma/document';
+import { COLORS, colorToCss } from '@sigma/document';
+import { useState } from 'react';
 import type { NodeId } from '@sigma/shared';
 import { useEditor, useEditorContext, useReadOnly } from '../editor-context';
+import { http } from '../../../lib/api';
+import { toast } from '../../../components/ui/toast';
 import { useAuth } from '../../authentication/AuthProvider';
 import type { FrameLock, FrameReview, ReviewState } from '@sigma/validation';
 import { roleHas } from '@sigma/validation';
 import { useDocumentRevision, useSelectedNodes } from '../hooks';
 import { ColorField, NumberField, Section, Select } from './fields';
+import { LayoutSection, PositioningSection } from './LayoutSection';
+import { PrototypeSection } from '../../prototype/PrototypeSection';
+import { GradientEditor } from './GradientEditor';
 
 type Mixed<T> = T | 'mixed';
 function common<T>(values: T[]): Mixed<T> {
@@ -73,6 +79,7 @@ function ReadOnlyInspector() {
 function EditableInspector() {
   const editor = useEditor();
   const nodes = useSelectedNodes();
+  const readOnlyIgnore = false;
   const revision = useDocumentRevision();
   void revision;
   if (nodes.length === 0) return <PageInspector />;
@@ -304,7 +311,22 @@ function EditableInspector() {
         </Section>
       )}
 
+      {single && 'layout' in single && (
+        <LayoutSection node={single as Parameters<typeof LayoutSection>[0]['node']} />
+      )}
+      {nodes.length > 0 && !readOnlyIgnore && <PositioningSection nodes={nodes} />}
       {single && single.type === 'FRAME' && <FrameSection frame={single} />}
+      {single && <PrototypeSection node={single} />}
+      {single && single.type === 'COMPONENT' && <ComponentSection node={single} />}
+      {single && single.type === 'INSTANCE' && <InstanceSection node={single} />}
+      {single && single.type === 'COMPONENT_SET' && (
+        <Section title="Component set">
+          <div className="text-[11px] text-ink-400">
+            Variants: {single.variantAxes.join(', ') || 'none'} ·{' '}
+            {editor.graph.getChildIds(single.id).length} components
+          </div>
+        </Section>
+      )}
       {single && (single.type === 'POLYGON' || single.type === 'STAR') && (
         <Section title={single.type === 'POLYGON' ? 'Polygon' : 'Star'}>
           <div className="grid grid-cols-2 gap-1.5">
@@ -501,9 +523,69 @@ function PaintRow({
   onChange: (p: Paint, mergeKey?: string) => void;
   onRemove: () => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const switchType = (type: Paint['type']) => {
+    const base =
+      paint.type === 'SOLID'
+        ? paint.color
+        : paint.type === 'IMAGE'
+          ? COLORS.defaultFill
+          : paint.stops[0]!.color;
+    const stops =
+      paint.type === 'LINEAR_GRADIENT' || paint.type === 'RADIAL_GRADIENT'
+        ? paint.stops
+        : [
+            { position: 0, color: base },
+            { position: 1, color: { ...base, a: 0 } },
+          ];
+    const next: Paint =
+      type === 'SOLID'
+        ? { type, color: base, opacity: paint.opacity, visible: paint.visible }
+        : type === 'LINEAR_GRADIENT'
+          ? {
+              type,
+              start: { x: 0, y: 0 },
+              end: { x: 1, y: 1 },
+              stops,
+              opacity: paint.opacity,
+              visible: paint.visible,
+            }
+          : type === 'RADIAL_GRADIENT'
+            ? {
+                type,
+                center: { x: 0.5, y: 0.5 },
+                radius: 0.5,
+                stops,
+                opacity: paint.opacity,
+                visible: paint.visible,
+              }
+            : {
+                type,
+                assetId: null,
+                src: null,
+                scaleMode: 'FILL',
+                opacity: paint.opacity,
+                visible: paint.visible,
+              };
+    onChange(next);
+  };
+  const typeSelect = (
+    <select
+      className="field h-7 w-[4.6rem] px-1 text-[11px]"
+      value={paint.type}
+      onChange={(e) => switchType(e.target.value as Paint['type'])}
+      aria-label="Fill type"
+    >
+      <option value="SOLID">Solid</option>
+      <option value="LINEAR_GRADIENT">Linear</option>
+      <option value="RADIAL_GRADIENT">Radial</option>
+      <option value="IMAGE">Image</option>
+    </select>
+  );
   if (paint.type === 'SOLID') {
     return (
       <div className="flex items-center gap-1">
+        {typeSelect}
         <ColorField
           color={paint.color}
           opacity={paint.opacity}
@@ -522,29 +604,66 @@ function PaintRow({
       </div>
     );
   }
-  const label =
-    paint.type === 'LINEAR_GRADIENT'
-      ? 'Linear gradient'
-      : paint.type === 'RADIAL_GRADIENT'
-        ? 'Radial gradient'
-        : 'Image';
-  return (
-    <div className="flex items-center gap-1">
-      <div className="flex h-7 flex-1 items-center rounded-md bg-ink-750 px-2 text-[12px] text-ink-300">
-        {label}
+  if (paint.type === 'IMAGE') {
+    return (
+      <div className="flex items-center gap-1">
+        {typeSelect}
+        <div className="flex h-7 flex-1 items-center gap-1 overflow-hidden rounded-md bg-ink-750 px-2 text-[11px] text-ink-300">
+          {paint.src ? (
+            <img src={paint.src} alt="" className="h-5 w-5 rounded object-cover" />
+          ) : null}
+          <span className="truncate">{paint.src ? 'Image' : 'No image'}</span>
+          <select
+            className="ml-auto bg-transparent text-[11px]"
+            value={paint.scaleMode}
+            onChange={(e) =>
+              onChange({ ...paint, scaleMode: e.target.value as typeof paint.scaleMode })
+            }
+          >
+            {['FILL', 'FIT', 'STRETCH', 'TILE'].map((m) => (
+              <option key={m} value={m}>
+                {m.toLowerCase()}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button className="icon-btn h-6 w-6" title="Remove" onClick={onRemove}>
+          <Minus size={12} />
+        </button>
       </div>
-      <NumberField
-        label=""
-        value={Math.round(paint.opacity * 100)}
-        min={0}
-        max={100}
-        suffix="%"
-        className="w-16"
-        onChange={(v) => onChange({ ...paint, opacity: v / 100 }, 'paint:opacity')}
-      />
-      <button className="icon-btn h-6 w-6" title="Remove" onClick={onRemove}>
-        <Minus size={12} />
-      </button>
+    );
+  }
+  return (
+    <div>
+      <div className="flex items-center gap-1">
+        {typeSelect}
+        <button
+          className="flex h-7 flex-1 items-center gap-2 rounded-md bg-ink-750 px-2 text-[11px] text-ink-200"
+          onClick={() => setOpen((o) => !o)}
+          data-testid="gradient-toggle"
+        >
+          <span
+            className="h-4 w-10 rounded-sm ring-1 ring-ink-500"
+            style={{
+              background: `linear-gradient(90deg, ${paint.stops.map((s) => `${colorToCss(s.color)} ${s.position * 100}%`).join(', ')})`,
+            }}
+          />
+          {paint.stops.length} stops
+        </button>
+        <NumberField
+          label=""
+          value={Math.round(paint.opacity * 100)}
+          min={0}
+          max={100}
+          suffix="%"
+          className="w-[4.5rem]"
+          onChange={(v) => onChange({ ...paint, opacity: v / 100 }, 'paint:opacity')}
+        />
+        <button className="icon-btn h-6 w-6" title="Remove" onClick={onRemove}>
+          <Minus size={12} />
+        </button>
+      </div>
+      {open && <GradientEditor paint={paint} onChange={onChange} />}
     </div>
   );
 }
@@ -1022,6 +1141,152 @@ function FrameSection({ frame }: { frame: Extract<SceneNode, { type: 'FRAME' }> 
           </button>
         </div>
       )}
+    </Section>
+  );
+}
+
+function ComponentSection({ node }: { node: Extract<SceneNode, { type: 'COMPONENT' }> }) {
+  const editor = useEditor();
+  const { meta } = useEditorContext();
+  const instances = editor.ops.instancesOf(node.id);
+  const props = Object.entries(node.variantProps);
+  return (
+    <Section title="Component">
+      <input
+        className="field mb-2"
+        placeholder="Description"
+        defaultValue={node.description}
+        key={node.id}
+        onKeyDown={(e) => e.stopPropagation()}
+        onBlur={(e) =>
+          e.target.value !== node.description &&
+          editor.ops.setProps([node.id], { description: e.target.value }, 'Describe component')
+        }
+      />
+      <div className="mb-1 text-[11px] text-ink-400">Variant properties</div>
+      {props.map(([k, v]) => (
+        <div key={k} className="mb-1 grid grid-cols-[1fr_1fr_auto] gap-1">
+          <input
+            className="field h-7"
+            defaultValue={k}
+            onKeyDown={(e) => e.stopPropagation()}
+            onBlur={(e) => {
+              const next = { ...node.variantProps };
+              delete next[k];
+              next[e.target.value.trim() || k] = v;
+              editor.ops.setProps([node.id], { variantProps: next }, 'Rename variant property');
+            }}
+          />
+          <input
+            className="field h-7"
+            defaultValue={v}
+            onKeyDown={(e) => e.stopPropagation()}
+            onBlur={(e) =>
+              editor.ops.setProps(
+                [node.id],
+                { variantProps: { ...node.variantProps, [k]: e.target.value } },
+                'Set variant value',
+              )
+            }
+          />
+          <button
+            className="icon-btn h-7 w-7"
+            onClick={() => {
+              const next = { ...node.variantProps };
+              delete next[k];
+              editor.ops.setProps([node.id], { variantProps: next }, 'Remove variant property');
+            }}
+          >
+            <Minus size={12} />
+          </button>
+        </div>
+      ))}
+      <button
+        className="mb-2 rounded px-1.5 py-0.5 text-[10px] text-ink-300 hover:bg-ink-700"
+        onClick={() =>
+          editor.ops.setProps(
+            [node.id],
+            { variantProps: { ...node.variantProps, [`prop${props.length + 1}`]: 'value' } },
+            'Add variant property',
+          )
+        }
+      >
+        + Property
+      </button>
+      <div className="flex items-center justify-between text-[11px] text-ink-400">
+        <span>
+          {instances.length} instance{instances.length === 1 ? '' : 's'}
+        </span>
+        <button
+          className="rounded bg-ink-700 px-2 py-1 text-[11px] hover:bg-ink-600"
+          data-testid="publish-component"
+          onClick={() =>
+            http
+              .post(`/documents/${meta.documentId}/library/publish`, { componentIds: [node.id] })
+              .then(() => toast.success('Published to the workspace library'))
+              .catch((e) => toast.error((e as Error).message))
+          }
+        >
+          Publish to library
+        </button>
+      </div>
+    </Section>
+  );
+}
+
+function InstanceSection({ node }: { node: Extract<SceneNode, { type: 'INSTANCE' }> }) {
+  const editor = useEditor();
+  const master = editor.graph.getNode(node.componentId as NodeId);
+  const variants = editor.ops.variantsOf(node.id);
+  const overrideCount = Object.keys(node.overrides).length;
+  return (
+    <Section title="Instance">
+      <div className="mb-2 flex items-center justify-between text-[12px]">
+        <span className="truncate">◈ {master?.name ?? 'Missing component'}</span>
+        {master && (
+          <button
+            className="text-[11px] text-accent-400 hover:underline"
+            onClick={() => {
+              editor.selection.set([master.id]);
+              editor.zoomToSelection();
+            }}
+          >
+            Go to main
+          </button>
+        )}
+      </div>
+      {variants.length > 1 && (
+        <div className="mb-2 grid grid-cols-[auto_1fr] items-center gap-2 text-[12px]">
+          <span className="text-ink-400">Variant</span>
+          <Select<string>
+            value={node.componentId}
+            options={variants.map((v) => ({
+              value: v.id,
+              label:
+                Object.entries(v.variantProps)
+                  .map(([k, val]) => `${k}=${val}`)
+                  .join(', ') || v.name,
+            }))}
+            onChange={(id) => editor.ops.swapInstance(node.id, id as NodeId)}
+          />
+        </div>
+      )}
+      <div className="flex gap-1">
+        <button
+          className="flex-1 rounded-md bg-ink-700 px-2 py-1 text-[11px] hover:bg-ink-600 disabled:opacity-40"
+          disabled={overrideCount === 0}
+          onClick={() => editor.ops.resetOverrides(node.id)}
+        >
+          Reset overrides ({overrideCount})
+        </button>
+        <button
+          className="flex-1 rounded-md bg-ink-700 px-2 py-1 text-[11px] hover:bg-ink-600"
+          data-testid="detach-instance"
+          onClick={() => editor.ops.detachInstance(node.id)}
+        >
+          Detach
+        </button>
+      </div>
     </Section>
   );
 }

@@ -220,3 +220,21 @@ Node types are switched on in several places; add the type to each, in this orde
   Nest HTTP server in `main.ts`); client hook `apps/web/src/features/collaboration/usePresence.ts`.
 - CLI: `packages/cli/bin/sigma.mjs` (no build step; `node packages/cli/bin/sigma.mjs --help`).
 - Playwright: `tests/e2e/features.spec.ts` covers the Milestone 4 features end to end.
+
+## Milestones 5–7 additions
+
+- `packages/collab` — Yjs binding (`bindGraph`, `populateYDoc`, `graphFromYDoc`, base64 update
+  helpers). Unit tests run two bound graphs through an in-memory relay, including offline
+  divergence. `apps/web/src/features/collaboration/realtime.ts` wraps it for the presence socket;
+  `apps/api/src/collaboration/collab-rooms.service.ts` is the server room with debounced
+  persistence (`COLLAB_PERSIST_DEBOUNCE_MS`, default 1000).
+- Prototyping lives in `packages/engine/src/prototype.ts` (`PrototypeRuntime`) and
+  `apps/web/src/features/prototype/` (inspector section, connections overlay, preview page).
+- Uploads: `DATA_DIR` (default `./data`, `/data` volume in Docker) or `S3_*` variables for an
+  S3-compatible bucket; `MAX_UPLOAD_MB` caps size. Signed URLs are HMAC-SHA256 over
+  `assetId:expiry` with `SESSION_SECRET`.
+- i18n: `apps/web/src/lib/i18n.ts` — add a key to the English dictionary and TypeScript forces every
+  other locale to provide it (`i18n.test.ts` also checks it at runtime).
+- Touch: `packages/engine/src/gestures.ts` (pinch maths) wired in `input.ts`; the editor page
+  switches to floating panels below 900 px.
+- Operations: `scripts/backup.sh`, `scripts/restore.sh`, Caddy profile in `docker-compose.yml`.

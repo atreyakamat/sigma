@@ -40,6 +40,9 @@ model User {
   passwordHash String   @map("password_hash")
   avatarUrl    String?  @map("avatar_url")
   systemRole   SystemRole @default(MEMBER) @map("system_role")
+  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  totpSecret   String?  @map("totp_secret")
+  recoveryCodes Json?   @map("recovery_codes")
   active       Boolean  @default(true)
   mustChangePassword Boolean @default(false) @map("must_change_password")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -76,6 +79,42 @@ model ApiToken {
   @@map("api_tokens")
 }
 
+/// A component published from a document into its workspace's shared library.
+model LibraryComponent {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  documentId    String   @map("document_id") @db.Uuid
+  componentId   String   @map("component_id")
+  name          String
+  description   String   @default("")
+  content       Json
+  thumbnail     String?
+  version       Int      @default(1)
+  publishedById String   @map("published_by_id") @db.Uuid
+  publishedAt   DateTime @default(now()) @map("published_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, documentId, componentId])
+  @@index([workspaceId])
+  @@map("library_components")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  ip         String?
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@map("audit_log")
+}
+
 model Session {
   id         String   @id @default(uuid()) @db.Uuid
   tokenHash  String   @unique @map("token_hash")
@@ -83,6 +122,8 @@ model Session {
   createdAt  DateTime @default(now()) @map("created_at")
   lastSeenAt DateTime @default(now()) @map("last_seen_at")
   expiresAt  DateTime @map("expires_at")
+  userAgent  String?  @map("user_agent")
+  ip         String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -102,6 +143,7 @@ model Workspace {
   members  WorkspaceMember[]
   projects Project[]
   assets   Asset[]
+  library  LibraryComponent[]
 
   @@map("workspaces")
 }

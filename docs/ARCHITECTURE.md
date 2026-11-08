@@ -32,8 +32,8 @@ Server (planned usage)
  ├── apps/api (NestJS + Prisma)   auth · workspaces · projects · documents · assets · versions
  ├── PostgreSQL                    metadata, permissions, update log
  ├── Redis                         sessions, queues (BullMQ), presence
- ├── S3-compatible storage (planned) snapshots, uploaded assets
- └── Yjs over WebSockets           CRDT document sync (Milestone 6)
+ ├── Local volume or S3 bucket     uploaded assets (signed URLs)
+ └── @sigma/collab + WebSockets    CRDT document sync (Yjs rooms, ADR-0012)
 ```
 
 Dependency direction is strictly downward; `pnpm verify` typechecks every package in isolation, which
@@ -92,12 +92,16 @@ services holding logic. The Prisma schema (users, workspaces, members, projects,
 documents, snapshots, updates, assets, comments, permissions, share tokens, versions) and migration
 `0001_init` exist; only `/api/v1/health` is implemented. See `docs/DATABASE.md` and `docs/API.md`.
 
-## Collaboration (planned)
+## Collaboration
 
-Yjs documents will mirror the scene graph's flat map; commands will apply to the `Y.Doc` and the
-graph will observe it. Awareness carries cursors and selections. Local UI state (viewport, panels,
-tool, previews) is never synchronized. Persistence batches updates into `document_updates` and
-compacts into snapshots in object storage.
+`@sigma/collab` binds a `SceneGraph` to a Yjs document: one JSON record per node in a `Y.Map`,
+document meta in a second map. Local commands apply to the graph as before (undo stays local); the
+binding mirrors the resulting node changes into the Y.Doc and applies remote transactions back in
+one batch. Hierarchy conflicts are repaired deterministically so every peer converges. The API
+keeps one room per open document on the presence socket, relays updates, and folds the room into
+`documents.content` after a short debounce, so exports, versions and the CLI read the same table
+as before. Presence (cursors, selections) is ephemeral awareness on the same socket. Details and
+trade-offs: ADR-0012.
 
 ## Non-goals for now
 

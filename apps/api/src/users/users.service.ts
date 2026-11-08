@@ -14,10 +14,14 @@ import type { User } from '../../prisma/generated/client';
 import { toUserDto } from '../common/dto';
 import { generatePassword, hashPassword } from '../common/password';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async list(): Promise<UserDto[]> {
     const users = await this.prisma.user.findMany({ orderBy: { createdAt: 'asc' } });
@@ -31,7 +35,7 @@ export class UsersService {
   }
 
   /** Creates a user with a supplied or generated temporary password (returned once). */
-  async create(input: CreateUserInput): Promise<CreatedUserResponse> {
+  async create(input: CreateUserInput, actor?: User): Promise<CreatedUserResponse> {
     if (await this.prisma.user.findUnique({ where: { email: input.email } }))
       throw new ConflictException('A user with this email already exists');
     const temporaryPassword = input.password ?? generatePassword();
@@ -43,6 +47,12 @@ export class UsersService {
         passwordHash: await hashPassword(temporaryPassword),
         mustChangePassword: true,
       },
+    });
+    await this.audit.record('user.create', {
+      actorId: actor?.id ?? null,
+      targetType: 'user',
+      targetId: user.id,
+      metadata: { email: user.email, systemRole: user.systemRole },
     });
     return { user: toUserDto(user), temporaryPassword };
   }
@@ -62,10 +72,16 @@ export class UsersService {
       if (input.active === false) await tx.session.deleteMany({ where: { userId: id } });
       return u;
     });
+    void this.audit.record('user.update', {
+      actorId: actor.id,
+      targetType: 'user',
+      targetId: id,
+      metadata: input as Record<string, unknown>,
+    });
     return toUserDto(updated);
   }
 
-  async resetPassword(id: string): Promise<CreatedUserResponse> {
+  async resetPassword(id: string, actor?: User): Promise<CreatedUserResponse> {
     const target = await this.prisma.user.findUnique({ where: { id } });
     if (!target) throw new NotFoundException('User not found');
     const temporaryPassword = generatePassword();
@@ -76,6 +92,11 @@ export class UsersService {
       });
       await tx.session.deleteMany({ where: { userId: id } });
       return u;
+    });
+    await this.audit.record('user.reset_password', {
+      actorId: actor?.id ?? null,
+      targetType: 'user',
+      targetId: id,
     });
     return { user: toUserDto(user), temporaryPassword };
   }
@@ -112,6 +133,12 @@ export class UsersService {
         data: { createdById: heirAdmin.id },
       });
       await tx.user.delete({ where: { id } });
+    });
+    void this.audit.record('user.delete', {
+      actorId: actor.id,
+      targetType: 'user',
+      targetId: id,
+      metadata: { email: target.email },
     });
   }
 

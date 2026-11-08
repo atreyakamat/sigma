@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { PresenceUser } from '@sigma/validation';
 
-export type LeftTab = 'layers' | 'pages' | 'history' | 'comments';
+export type LeftTab = 'layers' | 'pages' | 'history' | 'comments' | 'components';
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'offline';
 
 interface EditorUiState {
@@ -19,6 +19,10 @@ interface EditorUiState {
   showResolved: boolean;
   presenceUsers: PresenceUser[];
   presenceConnected: boolean;
+  /** Realtime co-editing is synced: edits persist through the server, not HTTP autosave. */
+  realtime: boolean;
+  prototypeMode: boolean;
+  setPrototypeMode(on: boolean): void;
   setCommentMode(on: boolean): void;
   setShowResolved(on: boolean): void;
   setPaletteOpen(open: boolean): void;
@@ -48,6 +52,9 @@ export const useEditorUi = create<EditorUiState>((set) => ({
   showResolved: false,
   presenceUsers: [],
   presenceConnected: false,
+  realtime: false,
+  prototypeMode: false,
+  setPrototypeMode: (prototypeMode) => set({ prototypeMode }),
   setCommentMode: (commentMode) =>
     set({ commentMode, ...(commentMode ? { leftTab: 'comments', leftOpen: true } : {}) }),
   setShowResolved: (showResolved) => set({ showResolved }),

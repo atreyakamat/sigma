@@ -9,9 +9,11 @@ import { Field, Modal } from '../../components/ui/Modal';
 import { http } from '../../lib/api';
 import { keys, useApiMutation, useWorkspaces } from '../../lib/queries';
 import { useAuth } from '../authentication/AuthProvider';
+import { useT } from '../../lib/i18n';
 
 export function WorkspacesPage() {
   const { user } = useAuth();
+  const t = useT();
   const [all, setAll] = useState(false);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
@@ -30,17 +32,15 @@ export function WorkspacesPage() {
       <AppHeader
         actions={
           <Button variant="primary" onClick={() => setCreating(true)}>
-            <Plus size={14} /> New workspace
+            <Plus size={14} /> {t('workspaces.new')}
           </Button>
         }
       />
       <main className="mx-auto max-w-5xl px-6 py-8">
         <div className="mb-6 flex items-end justify-between">
           <div>
-            <h1 className="text-xl font-semibold">Workspaces</h1>
-            <p className="mt-1 text-[12px] text-ink-400">
-              A workspace holds projects and the people who can work on them.
-            </p>
+            <h1 className="text-xl font-semibold">{t('workspaces.title')}</h1>
+            <p className="mt-1 text-[12px] text-ink-400">{t('workspaces.subtitle')}</p>
           </div>
           {user?.systemRole === 'ADMIN' && (
             <label className="flex items-center gap-2 text-[12px] text-ink-300">
@@ -69,19 +69,19 @@ export function WorkspacesPage() {
           </ul>
         ) : (
           <div className="rounded-xl border border-dashed border-ink-600 py-16 text-center text-ink-400">
-            No workspaces yet. Create one, or ask a workspace owner to add you.
+            {t('workspaces.empty')}
           </div>
         )}
       </main>
       {creating && (
-        <Modal title="New workspace" onClose={() => setCreating(false)}>
+        <Modal title={t('workspaces.new')} onClose={() => setCreating(false)}>
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (name.trim()) create.mutate(name.trim());
             }}
           >
-            <Field label="Name">
+            <Field label={t('common.name')}>
               <input
                 className="field h-9"
                 value={name}

@@ -164,3 +164,67 @@ export class ReplaceNodeCommand extends BaseCommand {
     return [this.props.id as NodeId];
   }
 }
+
+/** Replaces a node's props including its type (e.g. FRAME → COMPONENT), keeping id, position and children. */
+export class ChangeNodeTypeCommand extends BaseCommand {
+  readonly name: string;
+  private previous: Subtree | null = null;
+
+  constructor(
+    private readonly nodeId: NodeId,
+    private readonly next: NodeProps,
+    name = 'Change type',
+  ) {
+    super();
+    this.name = name;
+  }
+
+  override validate(graph: SceneGraph): boolean {
+    const node = graph.getNode(this.nodeId);
+    return !!node && node.type !== 'PAGE' && this.next.id === this.nodeId;
+  }
+
+  execute(graph: SceneGraph): void {
+    graph.batch(() => {
+      const sub = graph.removeNode(this.nodeId);
+      this.previous = sub;
+      const [root, ...rest] = sub.nodes;
+      const r = root as Subtree['nodes'][number];
+      graph.insertSubtree({
+        ...sub,
+        nodes: [
+          {
+            ...this.next,
+            id: this.nodeId,
+            parentId: r.parentId,
+            childIds: r.childIds,
+          } as Subtree['nodes'][number],
+          ...rest,
+        ],
+      });
+    });
+  }
+
+  undo(graph: SceneGraph): void {
+    if (!this.previous) throw new Error('ChangeNodeTypeCommand was not executed');
+    graph.batch(() => {
+      const current = graph.removeNode(this.nodeId);
+      // Children may have changed meanwhile only through undo order; restore the recorded subtree root with current children.
+      const [root, ...rest] = this.previous!.nodes;
+      graph.insertSubtree({
+        ...current,
+        nodes: [
+          {
+            ...(root as Subtree['nodes'][number]),
+            childIds: (current.nodes[0] as Subtree['nodes'][number]).childIds,
+          },
+          ...(rest.length ? current.nodes.slice(1) : []),
+        ],
+      });
+    });
+  }
+
+  affectedNodeIds(): readonly NodeId[] {
+    return [this.nodeId];
+  }
+}

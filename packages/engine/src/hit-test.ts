@@ -152,7 +152,10 @@ export class HitTester {
       case 'GROUP':
         // Groups are hit through their children only.
         return false;
-      case 'FRAME': {
+      case 'FRAME':
+      case 'COMPONENT':
+      case 'COMPONENT_SET':
+      case 'INSTANCE': {
         const hasFill = node.style.fills.some((f) => f.visible);
         if (hasFill || node.childIds.length === 0) return pointInRect(p, bounds, tol);
         return pointInRect(p, bounds, strokeTol) && !pointInRect(p, R.inflate(bounds, -strokeTol));

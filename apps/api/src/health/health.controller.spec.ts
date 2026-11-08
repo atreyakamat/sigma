@@ -4,6 +4,8 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { HealthController } from './health.controller';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('HealthController', () => {
   let app: INestApplication;
@@ -12,6 +14,10 @@ describe('HealthController', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [HealthController],
+      providers: [
+        { provide: PrismaService, useValue: { $queryRawUnsafe: async () => [{ '?column?': 1 }] } },
+        { provide: ConfigService, useValue: { get: () => 'test' } },
+      ],
     }).compile();
 
     controller = moduleRef.get(HealthController);
@@ -24,8 +30,8 @@ describe('HealthController', () => {
     await app.close();
   });
 
-  it('returns ok with a numeric uptime', () => {
-    const result = controller.check();
+  it('returns ok with a numeric uptime', async () => {
+    const result = await controller.check();
     expect(result.status).toBe('ok');
     expect(typeof result.uptime).toBe('number');
     expect(result.uptime).toBeGreaterThanOrEqual(0);

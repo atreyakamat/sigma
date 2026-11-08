@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { NodeJSON } from '@sigma/document';
 import type { FrameLock } from '@sigma/validation';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { DocumentJSON } from '@sigma/document';
 import type {
   CreateDocumentInputV1,
@@ -17,6 +17,9 @@ import { PermissionsService } from '../permissions/permissions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VersionsService } from '../versions/versions.service';
 import { PresenceGateway } from '../collaboration/presence.gateway';
+import { CollabRoomsService } from '../collaboration/collab-rooms.service';
+import { ExportsService } from '../exports/exports.service';
+import { SceneGraph, projectInstances } from '@sigma/document';
 
 function toSummary(d: Document, workspaceId: string): DocumentSummaryDto {
   return {
@@ -40,7 +43,39 @@ export class DocumentsService {
     private readonly perms: PermissionsService,
     private readonly versions: VersionsService,
     private readonly presence: PresenceGateway,
-  ) {}
+    private readonly rooms: CollabRoomsService,
+    private readonly exports: ExportsService,
+  ) {
+    this.rooms.setPersister((id, content, user) => this.persistRealtime(id, content, user));
+  }
+
+  /** Small PNG data URL of the first page, used for file cards when the client sent none. */
+  private async thumbnailFor(content: DocumentJSON, user: User): Promise<string | null> {
+    try {
+      const graph = SceneGraph.fromJSON(content);
+      projectInstances(graph);
+      const page = graph.pageIds[0];
+      if (!page || graph.getChildIds(page).length === 0) return null;
+      const b = graph
+        .getChildIds(page)
+        .map((c) => graph.getWorldBounds(c))
+        .reduce(
+          (a, r) => ({
+            x: Math.min(a.x, r.x),
+            y: Math.min(a.y, r.y),
+            w: Math.max(a.w, r.x + r.width),
+            h: Math.max(a.h, r.y + r.height),
+          }),
+          { x: Infinity, y: Infinity, w: -Infinity, h: -Infinity },
+        );
+      const scale = Math.min(1, 320 / Math.max(1, b.w - b.x, b.h - b.y));
+      const png = await this.exports.rasterize(graph, [page], user, scale, 8);
+      return `data:image/png;base64,${png.toString('base64')}`;
+    } catch (e) {
+      new Logger('Thumbnails').warn(`Thumbnail generation failed: ${(e as Error).message}`);
+      return null;
+    }
+  }
 
   async list(user: User, projectId: string): Promise<DocumentSummaryDto[]> {
     const workspaceId = await this.perms.workspaceOfProject(projectId);
@@ -119,7 +154,10 @@ export class DocumentsService {
         revision: input.baseRevision + 1,
         name: content.name,
         nodeCount: countNodes(content),
-        ...(input.thumbnail !== undefined ? { thumbnail: input.thumbnail } : {}),
+        thumbnail:
+          input.thumbnail !== undefined && input.thumbnail !== null
+            ? input.thumbnail
+            : await this.thumbnailFor(content, user),
       },
     });
     if (result.count === 0) {
@@ -139,8 +177,36 @@ export class DocumentsService {
       select: { revision: true, updatedAt: true },
     });
     await this.versions.maybeAutoSnapshot(user.id, id);
+    this.rooms.replace(id, content, d.revision);
     this.presence.notifySaved(id, d.revision, { id: user.id, name: user.name });
     return { revision: d.revision, updatedAt: d.updatedAt.toISOString() };
+  }
+
+  /**
+   * Realtime persistence: the room's CRDT state is authoritative, so no base revision is checked.
+   * Returns the new revision.
+   */
+  private async persistRealtime(
+    id: string,
+    content: DocumentJSON,
+    user: { id: string; name: string },
+  ): Promise<number> {
+    const actor = await this.prisma.user.findUnique({ where: { id: user.id } });
+    const thumbnail = actor ? await this.thumbnailFor(content, actor) : null;
+    const d = await this.prisma.document.update({
+      where: { id },
+      data: {
+        content: content as object,
+        revision: { increment: 1 },
+        name: content.name,
+        nodeCount: countNodes(content),
+        ...(thumbnail ? { thumbnail } : {}),
+      },
+      select: { revision: true },
+    });
+    await this.versions.maybeAutoSnapshot(user.id, id);
+    this.presence.notifySaved(id, d.revision, user);
+    return d.revision;
   }
 
   async remove(user: User, id: string): Promise<void> {

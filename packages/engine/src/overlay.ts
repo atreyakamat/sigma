@@ -10,6 +10,7 @@ import type { EditorSettings } from './types';
 
 export const OVERLAY_COLORS = {
   selection: '#2f6df6',
+  component: '#8b5cf6',
   selectionFill: 'rgba(47, 109, 246, 0.08)',
   hover: '#2f6df6',
   handleFill: '#ffffff',
@@ -259,17 +260,23 @@ export function drawFrameLabels(ctx: CanvasRenderingContext2D, state: OverlaySta
   ctx.textAlign = 'left';
   const visible = viewport.getVisibleWorldRect();
   for (const child of graph.getChildren(currentPageId)) {
-    if (child.type !== 'FRAME' || !child.visible) continue;
+    if (!['FRAME', 'COMPONENT', 'COMPONENT_SET', 'INSTANCE'].includes(child.type) || !child.visible)
+      continue;
     const wb = graph.getWorldBounds(child.id);
     if (!R.intersects(wb, visible)) continue;
     const p = viewport.worldToScreen({ x: wb.x, y: wb.y });
-    ctx.fillStyle = selectionIds.includes(child.id) ? OVERLAY_COLORS.selection : 'rgba(0,0,0,0.5)';
-    ctx.fillText(child.name, p.x, p.y - 4);
+    const isComponent = child.type !== 'FRAME';
+    ctx.fillStyle = selectionIds.includes(child.id)
+      ? OVERLAY_COLORS.selection
+      : isComponent
+        ? OVERLAY_COLORS.component
+        : 'rgba(0,0,0,0.5)';
+    ctx.fillText((isComponent ? '◈ ' : '') + child.name, p.x, p.y - 4);
     const meta = child.metadata as {
       lock?: { name: string; until: string };
       review?: { state: string };
     };
-    let x = p.x + ctx.measureText(child.name).width + 6;
+    let x = p.x + ctx.measureText((isComponent ? '◈ ' : '') + child.name).width + 6;
     const badge = (text: string, color: string): void => {
       const w = ctx.measureText(text).width + 8;
       ctx.fillStyle = color;

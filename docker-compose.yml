@@ -3,6 +3,11 @@
 #   docker compose --env-file .env.docker up -d --build
 #   docker compose logs api                           # shows the initial admin password unless BOOTSTRAP_ADMIN_PASSWORD is set
 # Then open http://localhost:${WEB_PORT:-3000}
+#
+# HTTPS: set PUBLIC_HOST (a DNS name pointing at this machine), PUBLIC_URL=https://<host> and
+# COOKIE_SECURE=true in .env.docker, then start with the `https` profile:
+#   docker compose --env-file .env.docker --profile https up -d --build
+# Caddy obtains and renews certificates from Let's Encrypt automatically.
 name: sigma-stack
 
 services:
@@ -39,6 +44,11 @@ services:
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@sigma.local}
       BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-Administrator}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      DATA_DIR: /data
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20}
+      COLLAB_PERSIST_DEBOUNCE_MS: ${COLLAB_PERSIST_DEBOUNCE_MS:-1000}
+    volumes:
+      - api-data:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,6 +59,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  # Optional TLS edge (profile `https`): terminates HTTPS and forwards to the web container.
+  proxy:
+    image: caddy:2-alpine
+    profiles: ['https']
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:-localhost}
+    volumes:
+      - ./infrastructure/deployment/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
 
   postgres:
     image: postgres:17-alpine
@@ -80,3 +107,6 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  api-data:
+  caddy-data:
+  caddy-config:

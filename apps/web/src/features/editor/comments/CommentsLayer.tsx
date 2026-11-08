@@ -25,7 +25,12 @@ export function CommentsLayer() {
   const { commentMode, setCommentMode, showResolved } = useEditorUi();
   const comments = useComments(meta.documentId);
   const [open, setOpen] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [draft, setDraft] = useState<{
+    x: number;
+    y: number;
+    text: string;
+    nodeId: string | null;
+  } | null>(null);
   const vp = useEditorValue(
     (e) => `${e.viewport.zoom}:${e.viewport.offsetX}:${e.viewport.offsetY}:${e.currentPageId}`,
     ['viewport', 'page'],
@@ -59,7 +64,8 @@ export function CommentsLayer() {
       e.preventDefault();
       const r = host.getBoundingClientRect();
       const world = editor.viewport.screenToWorld({ x: e.clientX - r.left, y: e.clientY - r.top });
-      setDraft({ x: world.x, y: world.y, text: '' });
+      const hit = editor.hitTester.hitTest(world, { tolerance: editor.worldTolerance() });
+      setDraft({ x: world.x, y: world.y, text: '', nodeId: hit?.id ?? null });
       setOpen(null);
     };
     host.addEventListener('pointerdown', onDown, true);
@@ -77,10 +83,25 @@ export function CommentsLayer() {
   }, [draft, commentMode, setCommentMode]);
 
   const page = editor.currentPageId;
+  const anchorFor = (d: { x: number; y: number; nodeId: string | null }) => {
+    if (d.nodeId && editor.graph.hasNode(d.nodeId as never)) {
+      const b = editor.graph.getWorldBounds(d.nodeId as never);
+      return { pageId: page, nodeId: d.nodeId, x: d.x - b.x, y: d.y - b.y };
+    }
+    return { pageId: page, nodeId: null, x: d.x, y: d.y };
+  };
   const threads = (comments.data ?? []).filter(
     (t) => t.anchor?.pageId === page && (showResolved || !t.resolved),
   );
   const toScreen = (x: number, y: number) => editor.viewport.worldToScreen({ x, y });
+  /** Pins anchored to a node follow it: the stored point is relative to the node's bounds origin. */
+  const anchorPoint = (a: { x: number; y: number; nodeId?: string | null }) => {
+    if (a.nodeId && editor.graph.hasNode(a.nodeId as never)) {
+      const b = editor.graph.getWorldBounds(a.nodeId as never);
+      return toScreen(b.x + a.x, b.y + a.y);
+    }
+    return toScreen(a.x, a.y);
+  };
 
   return (
     <div
@@ -88,7 +109,7 @@ export function CommentsLayer() {
       data-testid="comments-layer"
     >
       {threads.map((t, i) => {
-        const p = toScreen(t.anchor!.x, t.anchor!.y);
+        const p = anchorPoint(t.anchor!);
         const isOpen = open === t.id;
         return (
           <div key={t.id} className="absolute" style={{ left: p.x, top: p.y }}>
@@ -172,7 +193,7 @@ export function CommentsLayer() {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && draft.text.trim())
                   create.mutate({
                     content: draft.text.trim(),
-                    anchor: { pageId: page, nodeId: null, x: draft.x, y: draft.y },
+                    anchor: anchorFor(draft),
                   });
               }}
               data-testid="comment-composer"
@@ -187,7 +208,7 @@ export function CommentsLayer() {
                 onClick={() =>
                   create.mutate({
                     content: draft.text.trim(),
-                    anchor: { pageId: page, nodeId: null, x: draft.x, y: draft.y },
+                    anchor: anchorFor(draft),
                   })
                 }
               >

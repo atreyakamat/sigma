@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NodeId } from '@sigma/shared';
-import { decodeImageFile } from '@sigma/import-export';
+import { decodeImageFile, importSvg } from '@sigma/import-export';
+import { toast } from '../../../components/ui/toast';
 import { useEditorContext } from '../editor-context';
 import { useEditorEvent } from '../hooks';
 import { useEditorUi } from '../store';
@@ -9,7 +10,7 @@ import { TextEditOverlay } from './TextEditOverlay';
 
 /** Mounts the engine's canvases and hosts DOM overlays (text editing, context menu, drop zone). */
 export function CanvasHost() {
-  const { editor, tools, readOnly } = useEditorContext();
+  const { editor, tools, readOnly, meta } = useEditorContext();
   const ref = useRef<HTMLDivElement>(null);
   const [editingText, setEditingText] = useState<NodeId | null>(null);
   const [dropping, setDropping] = useState(false);
@@ -25,6 +26,12 @@ export function CanvasHost() {
   }, [editor]);
 
   useEditorEvent('textEdit', ({ id }) => !readOnly && setEditingText(id));
+  useEffect(() => {
+    const open = () => svgInput.current?.click();
+    window.addEventListener('sigma:import-svg', open);
+    return () => window.removeEventListener('sigma:import-svg', open);
+  }, []);
+  const svgInput = useRef<HTMLInputElement>(null);
 
   // Image tool asks the host for a file when activated with nothing pending.
   useEffect(() => {
@@ -37,9 +44,44 @@ export function CanvasHost() {
   const placeFiles = async (files: FileList | File[], at?: { x: number; y: number }) => {
     for (const file of Array.from(files)) {
       try {
+        if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
+          const { nodes, width, height } = importSvg(await file.text());
+          const screen = at ?? { x: editor.viewport.width / 2, y: editor.viewport.height / 2 };
+          const world = editor.viewport.screenToWorld(screen);
+          const ids = editor.ops.insertJSON(nodes, editor.currentPageId, {
+            x: Math.round(world.x - width / 2),
+            y: Math.round(world.y - height / 2),
+          });
+          if (ids.length > 1) editor.ops.groupSelection();
+          toast.success(
+            `Imported ${nodes.length} layer${nodes.length === 1 ? '' : 's'} from ${file.name}`,
+          );
+          continue;
+        }
         const img = await decodeImageFile(file);
+        let src = img.dataUrl;
+        let assetId: string | null = null;
+        try {
+          const form = new FormData();
+          form.append('file', file, file.name);
+          const res = await fetch(`/api/v1/workspaces/${meta.workspaceId}/assets`, {
+            method: 'POST',
+            body: form,
+            credentials: 'include',
+          });
+          if (res.ok) {
+            const asset = (await res.json()) as { id: string; url: string };
+            src = asset.url;
+            assetId = asset.id;
+          } else {
+            toast.info('Upload failed; the image is embedded in the file instead');
+          }
+        } catch {
+          /* offline: keep the embedded data URL */
+        }
         const pending = {
-          src: img.dataUrl,
+          src,
+          assetId,
           width: img.width,
           height: img.height,
           name: file.name.replace(/\.[^.]+$/, ''),
@@ -90,6 +132,16 @@ export function CanvasHost() {
         onChange={(e) => {
           if (e.target.files?.length) void placeFiles(e.target.files);
           else editor.tools.activate('select');
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={svgInput}
+        type="file"
+        accept=".svg,image/svg+xml"
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files?.length) void placeFiles(e.target.files);
           e.target.value = '';
         }}
       />

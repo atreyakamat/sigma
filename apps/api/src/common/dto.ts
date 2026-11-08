@@ -9,6 +9,7 @@ export function toUserDto(u: User): UserDto {
     systemRole: u.systemRole,
     active: u.active,
     mustChangePassword: u.mustChangePassword,
+    twoFactorEnabled: u.twoFactorEnabled,
     createdAt: u.createdAt.toISOString(),
   };
 }

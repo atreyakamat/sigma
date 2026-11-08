@@ -30,6 +30,9 @@ export class EnvironmentVariables {
   @IsOptional() @IsString() BOOTSTRAP_ADMIN_EMAIL?: string;
   @IsOptional() @IsString() BOOTSTRAP_ADMIN_NAME?: string;
   @IsOptional() @IsString() BOOTSTRAP_ADMIN_PASSWORD?: string;
+  @IsOptional() @IsInt() @Min(1) @Max(1024) MAX_UPLOAD_MB?: number;
+  @IsOptional() @IsString() DATA_DIR?: string;
+  @IsOptional() @IsString() APP_VERSION?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

@@ -1,4 +1,7 @@
-import { createCanvas } from '@napi-rs/canvas';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { ImageCache } from '@sigma/renderer';
+import type { ImageSource } from '@sigma/renderer';
+import { AssetsService } from '../assets/assets.service';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { DocumentJSON } from '@sigma/document';
 import { SceneGraph } from '@sigma/document';
@@ -25,7 +28,57 @@ export class ExportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly perms: PermissionsService,
+    private readonly assets: AssetsService,
   ) {}
+
+  /** Loads images referenced by asset URLs so server-side rendering can draw them. */
+  private async imageCacheFor(graph: SceneGraph, user: User): Promise<ImageCache> {
+    const cache = new ImageCache();
+    const srcs = new Set<string>();
+    for (const page of graph.pageIds)
+      graph.traverse(page, (n) => {
+        const paints = n.type === 'IMAGE' ? [n.image, ...n.style.fills] : n.style.fills;
+        for (const p of paints) if (p.type === 'IMAGE' && p.src) srcs.add(p.src);
+      });
+    for (const src of srcs) {
+      const m = /\/api\/v1\/assets\/([0-9a-f-]{36})\/content/.exec(src);
+      try {
+        if (m) {
+          const { data } = await this.assets.content(m[1] as string, user);
+          cache.set(src, (await loadImage(data)) as unknown as ImageSource);
+        } else if (src.startsWith('data:')) {
+          cache.set(
+            src,
+            (await loadImage(
+              Buffer.from(src.split(',')[1] ?? '', 'base64'),
+            )) as unknown as ImageSource,
+          );
+        }
+      } catch {
+        /* missing image: placeholder is drawn */
+      }
+    }
+    return cache;
+  }
+
+  /** Rasterizes nodes to PNG with asset images resolved. */
+  async rasterize(
+    graph: SceneGraph,
+    ids: NodeId[],
+    user: User,
+    scale: number,
+    padding: number,
+  ): Promise<Buffer> {
+    const images = await this.imageCacheFor(graph, user);
+    const canvas = rasterizeNodes(graph, ids, {
+      scale,
+      background: '#ffffff',
+      padding,
+      images,
+      createCanvas: (w: number, h: number) => createCanvas(w, h) as unknown as HTMLCanvasElement,
+    });
+    return (canvas as unknown as { toBuffer(mime: 'image/png'): Buffer }).toBuffer('image/png');
+  }
 
   private async load(
     user: User,
@@ -77,13 +130,7 @@ export class ExportsService {
       : 1;
     if (width * scale > 8192 || height * scale > 8192)
       throw new BadRequestException('Output exceeds 8192px; lower the scale');
-    const canvas = rasterizeNodes(graph, ids, {
-      scale,
-      background: '#ffffff',
-      padding: q.frame ? 0 : 16,
-      createCanvas: (w: number, h: number) => createCanvas(w, h) as unknown as HTMLCanvasElement,
-    });
-    return (canvas as unknown as { toBuffer(mime: 'image/png'): Buffer }).toBuffer('image/png');
+    return this.rasterize(graph, ids, user, scale, q.frame ? 0 : 16);
   }
 
   async tokens(

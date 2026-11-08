@@ -11,6 +11,9 @@ function host(readOnly = false) {
     openHistory() {},
     openVersions() {},
     saveCheckpoint() {},
+    importSvg() {},
+    openPreview() {},
+    togglePrototypeMode() {},
     readOnly,
   };
 }
@@ -38,6 +41,55 @@ describe('command palette registry', () => {
     expect(frame.type).toBe('FRAME');
     expect(frame.size).toEqual({ width: 1440, height: 1024 });
     expect(editor.defaults.frameSize).toEqual({ width: 1440, height: 1024 });
+  });
+
+  it('boolean commands need two selected nodes and produce a vector', () => {
+    const editor = new Editor();
+    const tools = registerDefaultTools(editor);
+    const cmds = buildCommands(editor, tools, host());
+    const union = cmds.find((c) => c.id === 'bool-union')!;
+    expect(union.enabled?.()).toBe(false);
+    const a = editor.ops.createNode('RECTANGLE', { size: { width: 10, height: 10 } });
+    const b = editor.ops.createNode('RECTANGLE', {
+      transform: { x: 5, y: 5, rotation: 0, scaleX: 1, scaleY: 1 },
+      size: { width: 10, height: 10 },
+    });
+    editor.selection.set([a, b]);
+    expect(union.enabled?.()).toBe(true);
+    union.run();
+    expect(editor.graph.getNode(editor.selection.first!)?.type).toBe('VECTOR');
+  });
+
+  it('component commands create masters, instances can be detached', () => {
+    const editor = new Editor();
+    const tools = registerDefaultTools(editor);
+    const cmds = buildCommands(editor, tools, host());
+    const a = editor.ops.createNode('RECTANGLE', { size: { width: 10, height: 10 } });
+    editor.selection.set([a]);
+    cmds.find((c) => c.id === 'create-component')!.run();
+    const master = editor.selection.first!;
+    expect(editor.graph.getNode(master)?.type).toBe('COMPONENT');
+    const inst = editor.ops.createInstance(master, editor.currentPageId, { x: 100, y: 100 });
+    editor.selection.set([inst]);
+    expect(cmds.find((c) => c.id === 'detach')!.enabled?.()).toBe(true);
+    cmds.find((c) => c.id === 'detach')!.run();
+    expect(editor.graph.hasNode(inst)).toBe(false);
+    expect(editor.graph.getNode(editor.selection.first!)?.type).toBe('FRAME');
+  });
+
+  it('auto layout command toggles layout on frames', () => {
+    const editor = new Editor();
+    const tools = registerDefaultTools(editor);
+    const cmd = buildCommands(editor, tools, host()).find((c) => c.id === 'auto-layout')!;
+    const frame = editor.ops.createNode('FRAME', { size: { width: 100, height: 100 } });
+    editor.ops.createNode('RECTANGLE', { size: { width: 10, height: 10 } }, frame);
+    editor.selection.set([frame]);
+    expect(cmd.enabled?.()).toBe(true);
+    cmd.run();
+    expect((editor.graph.getNode(frame) as { layout: { mode: string } }).layout.mode).toBe(
+      'VERTICAL',
+    );
+    expect(editor.graph.getNode(frame)?.size).toEqual({ width: 10, height: 10 });
   });
 
   it('fuzzy matches substrings first, then subsequences', () => {

@@ -2,11 +2,11 @@
 
 ## The pyramid as implemented
 
-| Level      | Tool                | Where                                                             | Runs in                                       |
-| ---------- | ------------------- | ----------------------------------------------------------------- | --------------------------------------------- |
-| Unit       | Vitest 5            | `packages/*/src/__tests__/*.test.ts`, `apps/api/src/**/*.spec.ts` | Node, headless (no DOM)                       |
-| End-to-end | Playwright 1.65     | `tests/e2e/editor.spec.ts`                                        | headless Chromium against the Vite dev server |
-| Benchmarks | Vitest + Playwright | `tests/benchmarks/`                                               | Node and headless Chromium                    |
+| Level      | Tool                | Where                                                             | Runs in                                    |
+| ---------- | ------------------- | ----------------------------------------------------------------- | ------------------------------------------ |
+| Unit       | Vitest 5            | `packages/*/src/__tests__/*.test.ts`, `apps/api/src/**/*.spec.ts` | Node, headless (no DOM)                    |
+| End-to-end | Playwright 1.65     | `tests/e2e/{fullstack,features,platform}.spec.ts`                 | headless Chromium against the Docker stack |
+| Benchmarks | Vitest + Playwright | `tests/benchmarks/`                                               | Node and headless Chromium                 |
 
 There is no separate integration tier yet: the engine tests exercise `document`, `history`,
 `renderer` (viewport/text layout) and `engine` together through the real `Editor`, and the API
@@ -16,71 +16,54 @@ test boots a real Nest application with supertest.
 
 Counts from `pnpm test` at the time of writing:
 
-| Package                       | File                        | Tests | Covers                                                                                                                                                                                                                      |
-| ----------------------------- | --------------------------- | ----: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@sigma/geometry`             | `geometry.test.ts`          |    19 | vec2, mat2d (order, inverse, decomposition), rect, hit tests, bezier bounds, `SpatialIndex`                                                                                                                                 |
-| `@sigma/document`             | `scene-graph.test.ts`       |    13 | hierarchy ops and their error cases, batching, world matrices/bounds, JSON round-trip, defaults, schema version refusal                                                                                                     |
-| `@sigma/history`              | `history.test.ts`           |    12 | execute/undo of every command, group/ungroup world-position preservation, merge window and boundaries, transactions and abort, limit, events                                                                                |
-| `@sigma/renderer`             | `viewport.test.ts`          |     7 | world/screen conversion, anchored zoom, clamping, `fitRect`, change events, `layoutText` fallback                                                                                                                           |
-| `@sigma/engine`               | `engine.test.ts`            |    19 | headless `Editor`, hit testing (z-order, locked/hidden, rect modes, page switch), operations (duplicate, group, align, distribute, reorder, frame, text, clipboard), transform math, snapping, keymap and default shortcuts |
-| `@sigma/tools`                | `tools.test.ts`             |    16 | select tool (click, shift-click, drag-move, marquee, resize handles, rotate, alt-duplicate, group entry, hover), shape tools (drag, shift/alt, parenting into frames, line), text, image, hand                              |
-| `@sigma/import-export`        | `export.test.ts`            |     4 | SVG export of a page and a single node, document file round-trip, magic-byte sniffing                                                                                                                                       |
-| `@sigma/validation`           | `validation.test.ts`        |     2 | email/password normalisation, slug and document creation schemas                                                                                                                                                            |
-| `@sigma/api`                  | `health.controller.spec.ts` |     2 | controller result, `GET /api/v1/health` over HTTP                                                                                                                                                                           |
-| `@sigma/shared`, `@sigma/web` | –                           |     0 | no unit tests (`--passWithNoTests`)                                                                                                                                                                                         |
+| Package                | Files                                                                  | Tests | Covers                                                                                                                                               |
+| ---------------------- | ---------------------------------------------------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@sigma/geometry`      | `geometry.test.ts`, `path.test.ts`                                     |    27 | vec2/mat2d/rect, hit tests, Bézier, spatial index, SVG path parse/serialise, booleans, simplify/smooth                                               |
+| `@sigma/document`      | `scene-graph.test.ts`, `components.test.ts`, `layout.test.ts`, `diff`  |    19 | hierarchy ops, batching, JSON round-trip, schema, instance projection, auto layout solver, constraints, document diff                                |
+| `@sigma/history`       | `history.test.ts`                                                      |    12 | execute/undo of every command, merge window, nested transactions, `attach`, limit, events                                                            |
+| `@sigma/renderer`      | `viewport.test.ts`                                                     |     7 | world/screen conversion, anchored zoom, clamping, `fitRect`, text layout fallback                                                                    |
+| `@sigma/engine`        | `engine`, `components`, `layout`, `prototype`, `gestures` tests        |    38 | headless editor, hit testing, operations, shortcuts, component ops and override routing, relayout glue, prototype runtime, pinch gestures            |
+| `@sigma/tools`         | `tools.test.ts`, `vector-tools.test.ts`                                |    24 | select/shape/text/image/hand tools, pen, pencil, vector edit                                                                                         |
+| `@sigma/import-export` | `export.test.ts`, `svg-import.test.ts`                                 |     7 | SVG export, document round-trip, magic bytes, SVG import to nodes, design tokens                                                                     |
+| `@sigma/collab`        | `collab.test.ts`                                                       |     8 | two bound graphs converge (inserts, updates, reparent, reorder, remove, meta), concurrent inserts, delete-vs-edit, derived exclusion, rebuild, reset |
+| `@sigma/validation`    | `validation.test.ts`                                                   |     2 | normalisation and schemas                                                                                                                            |
+| `@sigma/web`           | `commands`, `onboarding`, `i18n`, `realtime` tests                     |    25 | palette registry, onboarding checklist, dictionaries/locale persistence, realtime session through an in-memory relay                                 |
+| `@sigma/api`           | `health.controller.spec.ts` (unit); `test/*.int.spec.ts` (integration) |  2+38 | HTTP health; auth, users, RBAC, documents, rate limit, versions/exports, comments/presence, libraries, assets/2FA/audit, thumbnails, realtime        |
 
-Total: 94 tests. Engine and tool tests drive the editor with synthetic `EditorPointerEvent`s and
-never need a canvas; text measurement falls back to an estimate in Node, so tests avoid asserting
-exact text widths.
-
-Run:
-
-```sh
-pnpm test                                   # every package via turbo (typecheck of dependencies first)
-pnpm --filter @sigma/engine test            # one package
-pnpm --filter @sigma/engine exec vitest     # watch mode
-pnpm turbo run test --force                 # ignore the turbo cache
-```
-
-`turbo.json` makes `test` depend on `^typecheck`, so a type error in a dependency fails the
-dependent package's tests early.
+Integration tests need PostgreSQL (`pnpm --filter @sigma/api test:integration`); each file truncates
+the database first and starts a Nest application on a random port.
 
 ## End-to-end tests
 
-`tests/e2e/editor.spec.ts` contains two Playwright tests against the real web app:
+Three serial Playwright suites run against the Docker stack on `http://localhost:3000`
+(`E2E_BASE_URL` to override; the admin password is read from `docker compose logs api`, from
+`E2E_ADMIN_PASSWORD`, or is the one a previous run set):
 
-1. **MVP flow** — create a file from the dashboard, draw a rectangle with `R`, edit width and name
-   in the inspector, draw an ellipse and a text node, move by drag then undo/redo, shift-click to
-   multi-select and `Ctrl+G` to group, wait for "Saved" (autosave), reload and verify the layers
-   survived, go back to the dashboard and reopen the file, export PNG and SVG and check the SVG
-   contains the typed text.
-2. **Zoom, pan and delete** — draw, wheel-zoom, `Ctrl+=`, read the zoom from the status bar,
-   `Ctrl+1` to fit, `Delete`, undo.
-
-`playwright.config.ts` (root) starts `pnpm --filter @sigma/web dev` itself, uses
-`http://localhost:5173`, Desktop Chrome, serial execution (`fullyParallel: false`), `retries: 1` in CI and keeps traces on
-failure under `test-results/`.
+1. `fullstack.spec.ts` — first admin login with forced password change, user creation with a
+   generated password, workspace/project/file creation, RBAC in the UI (view-only editor), the MVP
+   drawing flow, autosave, reload, export.
+2. `features.spec.ts` — onboarding checklist and palette, history panel and versions with diff and
+   restore, comments, frame review states and server-enforced locks against a second user, live
+   presence and cross-editor refresh, API tokens used for server-side rendering and tokens.
+3. `platform.spec.ts` — realtime co-editing between two browsers without reloads, gradient editor,
+   prototype interaction and preview player, image upload stored as an asset with a signed URL,
+   two-factor enrolment / 2FA sign-in / session revocation / disabling, audit log, language switch
+   to Hindi, tablet layout.
 
 ```sh
 pnpm exec playwright install chromium   # once
+docker compose --env-file .env.docker up -d --build
 pnpm test:e2e
 pnpm test:e2e --headed                  # watch it
-pnpm test:e2e --ui
 ```
 
 **Modifier keys:** Playwright's `click({ modifiers: ['Shift'] })` does not set `shiftKey` on the
 pointer events that the engine's `InputSystem` reads in headless Chromium, so the tests hold the
-key explicitly:
+key explicitly with `keyboard.down('Shift')` around the click.
 
-```ts
-await page.keyboard.down('Shift');
-await page.mouse.click(x, y);
-await page.keyboard.up('Shift');
-```
-
-Selectors rely on `data-testid="canvas-host"`, the inspector field labels (`W`, `X`), the status
-bar text (`N layers`, `N selected`), the toolbar save status (`Saved`) and button names (`New design file`, `Export`,
-`Download PNG`, `Download SVG`). Changing those strings breaks the flow.
+Selectors rely on `data-testid` hooks (`canvas-host`, `save-status`, `presence-avatars`,
+`preview-frame`, `hotspot`, `gradient-editor`, `two-factor-form`, `audit-table`, …), inspector
+field labels and button names. Changing those strings breaks the flows.
 
 ## Benchmarks
 

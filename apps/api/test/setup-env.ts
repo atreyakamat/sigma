@@ -7,3 +7,5 @@ process.env['BOOTSTRAP_ADMIN_NAME'] ??= 'Root Admin';
 delete process.env['REDIS_URL'];
 delete process.env['S3_ENDPOINT'];
 process.env['LOGIN_RATE_LIMIT'] ??= '1000';
+process.env['MAX_UPLOAD_MB'] ??= '1';
+process.env['DATA_DIR'] ??= '/tmp/sigma-test-data';

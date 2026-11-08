@@ -15,6 +15,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@sigma/shared": "workspace:*"
+    "@sigma/shared": "workspace:*",
+    "polygon-clipping": "^0.15.7"
   }
 }

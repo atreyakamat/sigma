@@ -151,6 +151,62 @@ package is at `0.1.0`.
 - Dependencies: `@nestjs/throttler`, `pg`, `dotenv`, `vite` (api build), `@testing-library/*`,
   `jsdom`.
 
+### Milestones 5–7 — Vector tools, design systems, realtime co-editing, prototyping, hardening (2026-11-08)
+
+#### Added
+
+- Vector tools: pen (click/drag Bézier handles, close paths), pencil (freehand with Ramer–Douglas–
+  Peucker simplification and Catmull-Rom smoothing), vector edit mode (`Enter` on a path; drag
+  anchors and handles), path boolean operations (union, subtract, intersect, exclude via
+  `polygon-clipping`), flatten shapes to vectors, SVG import as vector nodes (drop onto the canvas
+  or import as a file; own XML parser), SVG path parsing/serialising in `@sigma/geometry`.
+- Design systems: components, component sets (variants), instances with per-node overrides routed
+  back to the right projected child, "create component", detach, reset overrides, swap variant,
+  go to main component; shared workspace libraries (`library_components`, migration `0004_library`)
+  published from a file and inserted from the Components panel. Auto layout (direction, gaps,
+  padding, alignment, wrap, hug/fixed/fill sizing, min/max) with a deterministic solver glued into
+  the same history entry as the triggering edit; constraints applied on frame resize.
+- Realtime co-editing (`@sigma/collab`, ADR-0012): Yjs rooms per open document on the presence
+  socket (`sync` / `update` messages), deterministic hierarchy reconciliation so concurrent inserts
+  converge, server-side persistence of the room into `documents.content` after a 1 s debounce with
+  revision bumps, thumbnails and `saved` broadcasts, viewer writes refused, HTTP replacements
+  (restore, CLI) re-synchronise every participant, offline edits merged on reconnect, automatic
+  fallback to revision-checked HTTP saves when the socket is down.
+- Prototyping: interactions on any layer (click, hover, drag, after delay, key) with navigate /
+  overlay / back / close / scroll-to / open-URL actions and transitions (dissolve, slide, push,
+  smart), flow starting point per page, connection arrows overlay (toolbar toggle), and a preview
+  player at `/file/:id/preview` driven by the engine's `PrototypeRuntime` with CSS transitions,
+  overlays, timed triggers, key triggers, back navigation and screen stepping.
+- Gradient editing UI: fill type switcher (solid / linear / radial / image), angle, radial centre
+  and radius, draggable-by-value stops with colour and position, add/remove stops.
+- Assets: uploads to `POST /workspaces/:id/assets` (multipart, magic-byte sniffing, configurable
+  size cap), local-disk or S3-compatible storage, permission-checked content endpoint, HMAC-signed
+  expiring URLs; the image tool uploads when online and keeps a data URL when offline; server
+  exports and thumbnails resolve asset images. Images draw through a clip-and-`drawImage` path so
+  server-side rendering needs no `DOMMatrix`.
+- Hardening: TOTP two-factor authentication with QR enrolment and hashed recovery codes
+  (migration `0005_hardening`), session listing and revocation, administrative audit log with UI,
+  Prometheus `GET /metrics`, health endpoint with database status, optional Caddy HTTPS edge
+  (`docker compose --profile https`), persistent `api-data` volume for uploads,
+  `scripts/backup.sh` / `scripts/restore.sh`.
+- Polish: server-side thumbnails for files saved without one (CLI, realtime), comments anchored to
+  layers (pins follow the node), pinch-to-zoom and two-finger pan on touch devices, tablet/phone
+  layout with floating side panels, i18n infrastructure with English and Hindi and a language
+  switch in the account menu, 2FA step on the login page, Security and Audit pages.
+- Tests: geometry 27, document 19, history 12, engine 38, tools 24, import-export 7, collab 8,
+  web 25 unit tests; API 38 integration tests (incl. realtime, assets, 2FA, audit, thumbnails);
+  20 end-to-end scenarios across three suites (realtime convergence in two browsers, prototype
+  preview, gradient editor, asset upload with signed URL, 2FA enrolment/sign-in/sessions, audit log,
+  language switch, tablet layout).
+- Dependencies: `yjs`, `polygon-clipping`, `multer`, `@aws-sdk/client-s3` (optional storage).
+
+#### Changed
+
+- Autosave skips HTTP while realtime is synced; the server persists and reports `saved`.
+- Scene graph: `setChildOrder` for collaborative reconciliation; `removeNode` excludes projected
+  instance children from the restorable subtree.
+- `History.attach` glues follow-up commands (relayout) into the previous entry; nested transactions.
+
 ### Milestone 4 — Standout features: guidance, history, handoff, collaboration (2026-11-08)
 
 - Onboarding: per-user "Get started" checklist bound to real engine events, one-time contextual

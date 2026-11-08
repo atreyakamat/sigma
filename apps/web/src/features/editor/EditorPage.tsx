@@ -15,12 +15,14 @@ import { SessionExpiredModal, useSessionState } from '../authentication/SessionE
 import { PresenceLayer } from '../collaboration/PresenceLayer';
 import { usePresence } from '../collaboration/usePresence';
 import { CommentsLayer, CommentsPanel } from './comments/CommentsLayer';
+import { ConnectionsLayer } from '../prototype/ConnectionsLayer';
 import { VersionsPanel } from './components/VersionsPanel';
 import { errorText } from '../../lib/queries';
 import { HintToast, OnboardingChecklist, useOnboardingBindings } from '../onboarding/Onboarding';
 import { buildCommands } from './commands';
 import { CanvasHost } from './components/CanvasHost';
 import { CommandPalette } from './components/CommandPalette';
+import { ComponentsPanel } from './components/ComponentsPanel';
 import { HistoryPanel } from './components/HistoryPanel';
 import { ShortcutsPanel } from './components/ShortcutsPanel';
 import { Inspector } from './components/Inspector';
@@ -69,6 +71,7 @@ export function EditorPage() {
     baseRevision: number;
   } | null>(null);
   const { leftOpen, rightOpen, setSaveStatus } = useEditorUi();
+  const narrow = useNarrowScreen();
   const dirtyRef = useRef(false);
   const revisionRef = useRef(0);
 
@@ -148,6 +151,16 @@ export function EditorPage() {
     const save = async () => {
       timer = null;
       if (stopped) return;
+      if (useEditorUi.getState().realtime) {
+        // Edits already reached the server's realtime room; it persists and reports `saved`.
+        dirtyRef.current = false;
+        try {
+          localStorage.removeItem(`sigma:pending:${documentId}`);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       setSaveStatus('saving');
       try {
         const page = editor.currentPageId as NodeId;
@@ -208,6 +221,7 @@ export function EditorPage() {
     const schedule = () => {
       if (stopped) return;
       dirtyRef.current = true;
+      if (useEditorUi.getState().realtime) setSaveStatus('saving');
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void save(), AUTOSAVE_DELAY_MS);
     };
@@ -270,17 +284,19 @@ export function EditorPage() {
         <div
           className="relative grid h-full min-h-0"
           style={{
-            gridTemplateColumns: `${leftOpen ? '248px' : '0px'} 1fr ${rightOpen ? '256px' : '0px'}`,
+            gridTemplateColumns: narrow
+              ? '1fr'
+              : `${leftOpen ? '248px' : '0px'} 1fr ${rightOpen ? '256px' : '0px'}`,
           }}
         >
           <aside
-            className={`min-h-0 overflow-hidden border-r border-ink-700 bg-ink-850 ${leftOpen ? '' : 'hidden'}`}
+            className={`min-h-0 overflow-hidden border-r border-ink-700 bg-ink-850 ${leftOpen ? '' : 'hidden'} ${narrow ? 'absolute inset-y-0 left-0 z-20 w-64 shadow-2xl' : ''}`}
           >
             <LeftSidebar />
           </aside>
           <CanvasHost />
           <aside
-            className={`min-h-0 overflow-y-auto border-l border-ink-700 bg-ink-850 scrollbar-thin ${rightOpen ? '' : 'hidden'}`}
+            className={`min-h-0 overflow-y-auto border-l border-ink-700 bg-ink-850 scrollbar-thin ${rightOpen ? '' : 'hidden'} ${narrow ? 'absolute inset-y-0 right-0 z-20 w-72 shadow-2xl' : ''}`}
           >
             <Inspector />
           </aside>
@@ -335,7 +351,17 @@ export function EditorPage() {
             </div>
           )}
           <CanvasOverlays
+            readOnly={ctx.readOnly}
+            isDirty={() => dirtyRef.current}
+            onRevision={(revision) => {
+              revisionRef.current = revision;
+              if (useEditorUi.getState().realtime) {
+                dirtyRef.current = false;
+                setSaveStatus('saved');
+              }
+            }}
             onServerSaved={(by) => {
+              if (useEditorUi.getState().realtime) return; // already in sync through the CRDT room
               if (dirtyRef.current) setConflict({ kind: 'updated', by });
               else void reloadFromServer(`${by} saved changes — file updated`);
             }}
@@ -387,6 +413,11 @@ function Overlays({ onRestored }: { onRestored: () => void }) {
         openHistory: () => setLeftTab('history'),
         openVersions: () => setVersionsOpen(true),
         saveCheckpoint: () => window.dispatchEvent(new CustomEvent('sigma:checkpoint')),
+        importSvg: () => window.dispatchEvent(new CustomEvent('sigma:import-svg')),
+        openPreview: () =>
+          window.location.assign(`${window.location.pathname.replace(/\/$/, '')}/preview`),
+        togglePrototypeMode: () =>
+          useEditorUi.setState((st) => ({ prototypeMode: !st.prototypeMode })),
       }),
     [editor, tools, readOnly, setExportOpen, setShortcutsOpen, setLeftTab, setVersionsOpen],
   );
@@ -435,7 +466,7 @@ function LeftSidebar() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-ink-700 px-2">
-        {(['layers', 'pages', 'comments', 'history'] as const).map((tab) => (
+        {(['layers', 'pages', 'components', 'comments', 'history'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setLeftTab(tab)}
@@ -450,17 +481,41 @@ function LeftSidebar() {
         {leftTab === 'pages' && <PagesPanel />}
         {leftTab === 'history' && <HistoryPanel />}
         {leftTab === 'comments' && <CommentsPanel />}
+        {leftTab === 'components' && <ComponentsPanel />}
       </div>
     </div>
   );
 }
 
 /** DOM layers over the canvas: remote cursors/selections and comment pins. */
-function CanvasOverlays({ onServerSaved }: { onServerSaved: (by: string) => void }) {
+function CanvasOverlays({
+  onServerSaved,
+  onRevision,
+  isDirty,
+  readOnly,
+}: {
+  onServerSaved: (by: string) => void;
+  onRevision: (revision: number) => void;
+  isDirty: () => boolean;
+  readOnly: boolean;
+}) {
   const { editor, meta } = useEditorContext();
   const { user } = useAuth();
-  const presence = usePresence(editor, meta.documentId, user?.id ?? '', (_rev, by) =>
-    onServerSaved(by.userName),
+  const presence = usePresence(
+    editor,
+    meta.documentId,
+    user?.id ?? '',
+    (_rev, by) => onServerSaved(by.userName),
+    {
+      readOnly,
+      isDirty,
+      onRevision,
+      onActive: (active) => {
+        useEditorUi.setState({ realtime: active });
+        // Falling back to HTTP: flush anything edited since the socket dropped.
+        if (!active) window.dispatchEvent(new Event('sigma:resume-save'));
+      },
+    },
   );
   useEffect(() => {
     useEditorUi.setState({ presenceUsers: presence.users, presenceConnected: presence.connected });
@@ -474,7 +529,26 @@ function CanvasOverlays({ onServerSaved }: { onServerSaved: (by: string) => void
       }}
     >
       <PresenceLayer users={presence.users} />
+      {useEditorUi((s) => s.prototypeMode) && <ConnectionsLayer />}
       <CommentsLayer />
     </div>
   );
+}
+
+/** Below 900px the side panels float over the canvas and start closed (phones and tablets). */
+function useNarrowScreen(): boolean {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 900,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 899px)');
+    const apply = () => {
+      setNarrow(mq.matches);
+      if (mq.matches) useEditorUi.setState({ leftOpen: false, rightOpen: false });
+    };
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+  return narrow;
 }

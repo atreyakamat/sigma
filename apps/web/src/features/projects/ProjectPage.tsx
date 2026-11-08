@@ -1,7 +1,8 @@
 import { Copy, FileUp, MoreHorizontal, Plus, Trash2, Type } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { parseDocumentFile } from '@sigma/import-export';
+import { importSvg, parseDocumentFile } from '@sigma/import-export';
+import { SceneGraph } from '@sigma/document';
 import type { DocumentSummaryDto } from '@sigma/validation';
 import { roleHas } from '@sigma/validation';
 import { AppHeader } from '../../components/AppHeader';
@@ -37,7 +38,15 @@ export function ProjectPage() {
   );
   const importFile = useApiMutation(
     async (file: File) => {
-      const content = parseDocumentFile(await file.text());
+      const text = await file.text();
+      if (file.name.toLowerCase().endsWith('.svg') || file.type === 'image/svg+xml') {
+        const { nodes } = importSvg(text);
+        const graph = SceneGraph.createEmpty(file.name.replace(/\.svg$/i, ''));
+        const page = graph.pageIds[0]!;
+        for (const n of nodes) graph.insertSubtreeJSON(n, page);
+        return documentRepository.create(projectId, graph.name, graph.toJSON());
+      }
+      const content = parseDocumentFile(text);
       return documentRepository.create(projectId, content.name, content);
     },
     inv,
@@ -63,7 +72,7 @@ export function ProjectPage() {
               <input
                 ref={fileInput}
                 type="file"
-                accept=".json,application/json"
+                accept=".json,.svg,application/json,image/svg+xml"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -72,7 +81,7 @@ export function ProjectPage() {
                 }}
               />
               <Button variant="ghost" onClick={() => fileInput.current?.click()}>
-                <FileUp size={14} /> Import .sigma.json
+                <FileUp size={14} /> Import .sigma.json / .svg
               </Button>
               <Button variant="primary" onClick={() => create.mutate()} disabled={create.isPending}>
                 <Plus size={14} /> New design file

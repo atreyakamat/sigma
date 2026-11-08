@@ -13,6 +13,9 @@ export interface AppConfig {
   cookieSecure: boolean;
   trustProxy: boolean;
   bootstrap: { email: string; name: string; password: string | null };
+  maxUploadBytes: number;
+  dataDir: string;
+  version: string;
 }
 
 export const DEFAULT_PORT = 4000;
@@ -51,6 +54,9 @@ export function configuration(): AppConfig {
     sessionTtlDays: Number(process.env['SESSION_TTL_DAYS'] ?? 30),
     cookieSecure: bool('COOKIE_SECURE', false),
     trustProxy: bool('TRUST_PROXY', false),
+    maxUploadBytes: Number(process.env['MAX_UPLOAD_MB'] ?? 20) * 1024 * 1024,
+    dataDir: process.env['DATA_DIR'] ?? './data',
+    version: process.env['APP_VERSION'] ?? '0.1.0',
     bootstrap: {
       email: (process.env['BOOTSTRAP_ADMIN_EMAIL'] ?? 'admin@sigma.local').toLowerCase(),
       name: process.env['BOOTSTRAP_ADMIN_NAME'] ?? 'Administrator',

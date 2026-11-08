@@ -29,8 +29,11 @@ export class UsersController {
   @Get() list(): Promise<UserDto[]> {
     return this.users.list();
   }
-  @Post() create(@Body(zod(CreateUserBody)) body: CreateUserInput): Promise<CreatedUserResponse> {
-    return this.users.create(body);
+  @Post() create(
+    @CurrentUser() actor: User,
+    @Body(zod(CreateUserBody)) body: CreateUserInput,
+  ): Promise<CreatedUserResponse> {
+    return this.users.create(body, actor);
   }
   @Get(':id') get(@Param('id', ParseUUIDPipe) id: string): Promise<UserDto> {
     return this.users.get(id);

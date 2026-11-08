@@ -107,6 +107,9 @@ function geometry(
   const { x, y, width, height } = bounds;
   switch (node.type) {
     case 'FRAME':
+    case 'COMPONENT':
+    case 'COMPONENT_SET':
+    case 'INSTANCE':
     case 'RECTANGLE':
     case 'IMAGE': {
       const r = node.style.cornerRadius;
@@ -251,7 +254,14 @@ function nodeToSvg(w: SvgWriter, graph: SceneGraph, node: SceneNode): string {
   }
 
   let childMarkup = children;
-  if (node.type === 'FRAME' && node.clipsContent && children) {
+  if (
+    (node.type === 'FRAME' ||
+      node.type === 'COMPONENT' ||
+      node.type === 'COMPONENT_SET' ||
+      node.type === 'INSTANCE') &&
+    node.clipsContent &&
+    children
+  ) {
     const clipId = w.addDef(`<clipPath id="{id}"><${geo.tag} ${geo.attrs}/></clipPath>`);
     childMarkup = `<g clip-path="url(#${clipId})">${children}</g>`;
   }

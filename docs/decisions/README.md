@@ -5,17 +5,17 @@ else was considered and what the decision costs. Records are numbered in the ord
 written and are never deleted; a superseded record gets its status changed and a pointer to the
 newer one.
 
-| ADR                                                  | Title                                         | Status   |
-| ---------------------------------------------------- | --------------------------------------------- | -------- |
-| [0001](./0001-modular-monolith.md)                   | Modular monolith in a pnpm/Turborepo          | Accepted |
-| [0002](./0002-custom-engine-canvas2d.md)             | Custom editor engine on Canvas 2D             | Accepted |
-| [0003](./0003-document-model-flat-scene-graph.md)    | Document model: nested JSON, flat scene graph | Accepted |
-| [0004](./0004-collaboration-yjs-planned.md)          | Realtime collaboration with Yjs (planned)     | Proposed |
-| [0005](./0005-command-system-and-history.md)         | Command system and history                    | Accepted |
-| [0006](./0006-spatial-index-grid-hash.md)            | Spatial index: uniform grid hash              | Accepted |
-| [0007](./0007-jit-typescript-packages.md)            | Just-in-time TypeScript packages              | Accepted |
-| [0008](./0008-typescript-6-toolchain.md)             | TypeScript 6 toolchain                        | Accepted |
-| [0009](./0009-local-first-persistence-before-api.md) | Local-first persistence before the API        | Accepted |
+| ADR                                                  | Title                                         | Status             |
+| ---------------------------------------------------- | --------------------------------------------- | ------------------ |
+| [0001](./0001-modular-monolith.md)                   | Modular monolith in a pnpm/Turborepo          | Accepted           |
+| [0002](./0002-custom-engine-canvas2d.md)             | Custom editor engine on Canvas 2D             | Accepted           |
+| [0003](./0003-document-model-flat-scene-graph.md)    | Document model: nested JSON, flat scene graph | Accepted           |
+| [0004](./0004-collaboration-yjs-planned.md)          | Realtime collaboration with Yjs (planned)     | Superseded by 0012 |
+| [0005](./0005-command-system-and-history.md)         | Command system and history                    | Accepted           |
+| [0006](./0006-spatial-index-grid-hash.md)            | Spatial index: uniform grid hash              | Accepted           |
+| [0007](./0007-jit-typescript-packages.md)            | Just-in-time TypeScript packages              | Accepted           |
+| [0008](./0008-typescript-6-toolchain.md)             | TypeScript 6 toolchain                        | Accepted           |
+| [0009](./0009-local-first-persistence-before-api.md) | Local-first persistence before the API        | Accepted           |
 
 ## Writing a new record
 
@@ -28,3 +28,4 @@ newer one.
 
 - [ADR-0010](0010-self-hosted-auth-and-rbac.md) — self-hosted authentication, sessions and RBAC
 - [ADR-0011](0011-collaboration-presence-locks-versions.md) — presence, frame locks and versions before CRDT co-editing
+- [ADR-0012](0012-realtime-crdt-rooms.md) — realtime co-editing with Yjs rooms persisted into `documents`

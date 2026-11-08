@@ -4,3 +4,4 @@ export * from './rect';
 export * from './hit';
 export * from './bezier';
 export * from './spatial-index';
+export * from './path';

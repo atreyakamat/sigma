@@ -1,5 +1,6 @@
 import {
   ChevronDown,
+  Component,
   ChevronRight,
   Eye,
   EyeOff,
@@ -34,6 +35,9 @@ const ICONS: Record<SceneNode['type'], React.ComponentType<{ size?: number }>> =
   TEXT: Type,
   IMAGE: ImageIcon,
   VECTOR: PenTool,
+  COMPONENT: Component,
+  COMPONENT_SET: Component,
+  INSTANCE: Component,
 };
 
 type DropPos = 'before' | 'after' | 'inside';

@@ -2,6 +2,10 @@ import {
   ChevronDown,
   Command,
   HelpCircle,
+  Play,
+  Workflow,
+  PenTool,
+  Pencil,
   History,
   MessageSquare,
   Circle,
@@ -21,7 +25,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useEditor, useEditorContext } from '../editor-context';
 import { PresenceAvatars } from '../../collaboration/PresenceLayer';
 import { useProject, useWorkspace } from '../../../lib/queries';
@@ -58,7 +62,10 @@ export function Toolbar() {
     setCommentMode,
     presenceUsers,
     presenceConnected,
+    prototypeMode,
+    setPrototypeMode,
   } = useEditorUi();
+  const navigate = useNavigate();
   const [shapeOpen, setShapeOpen] = useState(false);
   const [lastShape, setLastShape] = useState('rectangle');
   const shapeRef = useRef<HTMLDivElement>(null);
@@ -168,6 +175,12 @@ export function Toolbar() {
             <ToolButton id="text" label="Text" keyHint="T">
               <Type size={15} />
             </ToolButton>
+            <ToolButton id="pen" label="Pen" keyHint="P">
+              <PenTool size={15} />
+            </ToolButton>
+            <ToolButton id="pencil" label="Pencil" keyHint="⇧P">
+              <Pencil size={15} />
+            </ToolButton>
             <ToolButton id="image" label="Place image">
               <ImageIcon size={15} />
             </ToolButton>
@@ -211,6 +224,22 @@ export function Toolbar() {
           onClick={() => setCommentMode(!commentMode)}
         >
           <MessageSquare size={15} />
+        </button>
+        <button
+          className="icon-btn"
+          data-active={prototypeMode}
+          title="Prototype connections"
+          onClick={() => setPrototypeMode(!prototypeMode)}
+        >
+          <Workflow size={15} />
+        </button>
+        <button
+          className="icon-btn"
+          title="Preview prototype"
+          data-testid="preview-button"
+          onClick={() => void navigate(`${window.location.pathname.replace(/\/$/, '')}/preview`)}
+        >
+          <Play size={15} />
         </button>
         <button className="icon-btn" title="Version history" onClick={() => setVersionsOpen(true)}>
           <History size={15} />

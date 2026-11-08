@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Editor } from '@sigma/engine';
 import type { PresenceClientMessage, PresenceServerMessage, PresenceUser } from '@sigma/validation';
+import { RealtimeSession } from './realtime';
+import type { RealtimeOptions } from './realtime';
 
 export interface PresenceState {
   users: PresenceUser[];
   connected: boolean;
+  /** True while realtime co-editing is synced; local edits then persist through the server's CRDT room. */
+  realtime: boolean;
 }
 
 function wsUrl(): string {
@@ -21,10 +25,17 @@ export function usePresence(
   documentId: string,
   selfId: string,
   onSaved: (revision: number, by: { userId: string; userName: string }) => void,
+  realtime: RealtimeOptions = {},
 ): PresenceState {
-  const [state, setState] = useState<PresenceState>({ users: [], connected: false });
+  const [state, setState] = useState<PresenceState>({
+    users: [],
+    connected: false,
+    realtime: false,
+  });
   const onSavedRef = useRef(onSaved);
   onSavedRef.current = onSaved;
+  const realtimeRef = useRef(realtime);
+  realtimeRef.current = realtime;
 
   useEffect(() => {
     let ws: WebSocket | null = null;
@@ -34,12 +45,27 @@ export function usePresence(
     let lastSent = 0;
     let pending: PresenceClientMessage | null = null;
     const users = new Map<string, PresenceUser>();
+    let realtimeActive = false;
     const publish = () =>
-      setState({ users: [...users.values()], connected: ws?.readyState === WebSocket.OPEN });
+      setState({
+        users: [...users.values()],
+        connected: ws?.readyState === WebSocket.OPEN,
+        realtime: realtimeActive,
+      });
 
     const send = (msg: PresenceClientMessage) => {
       if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
     };
+    const session = new RealtimeSession(editor, send, {
+      readOnly: realtimeRef.current.readOnly,
+      isDirty: () => realtimeRef.current.isDirty?.() ?? false,
+      onRevision: (r) => realtimeRef.current.onRevision?.(r),
+      onActive: (active) => {
+        realtimeActive = active;
+        realtimeRef.current.onActive?.(active);
+        publish();
+      },
+    });
     const awareness = () => {
       const msg: PresenceClientMessage = {
         type: 'awareness',
@@ -92,12 +118,21 @@ export function usePresence(
           users.delete(msg.userId);
           publish();
         } else if (msg.type === 'saved') {
+          session.handle(msg);
           if (msg.userId !== selfId)
             onSavedRef.current(msg.revision, { userId: msg.userId, userName: msg.userName });
+        } else if (msg.type === 'sync' || msg.type === 'update') {
+          try {
+            session.handle(msg);
+          } catch (err) {
+            console.error('Realtime sync failed; falling back to saves over HTTP', err);
+            session.disconnected();
+          }
         }
       };
       ws.onclose = () => {
         users.clear();
+        session.disconnected();
         publish();
         if (!closed) setTimeout(connect, (retry = Math.min(retry * 2, 15_000)));
       };
@@ -123,6 +158,7 @@ export function usePresence(
       host?.removeEventListener('pointermove', onMove);
       host?.removeEventListener('pointerleave', onLeave);
       if (timer) clearTimeout(timer);
+      session.destroy();
       ws?.close();
     };
   }, [editor, documentId, selfId]);

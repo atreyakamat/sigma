@@ -1,4 +1,6 @@
 import type { Vec2 } from '@sigma/geometry';
+import { pinchDelta, pinchState } from './gestures';
+import type { PinchState } from './gestures';
 import type { Editor } from './editor';
 import type { EditorKeyEvent, EditorPointerEvent, Modifiers, PointerEventType } from './types';
 
@@ -37,6 +39,9 @@ export class InputSystem {
   private spaceHeld = false;
   private activePointerId: number | null = null;
   private lastDown: { time: number; x: number; y: number } | null = null;
+  /** Active touch points for pinch/pan. */
+  private touches = new Map<number, Vec2>();
+  private pinch: PinchState | null = null;
   private clickCount = 0;
 
   constructor(
@@ -96,7 +101,20 @@ export class InputSystem {
   }
 
   private onPointerDown(e: PointerEvent): void {
-    if (this.activePointerId !== null) return; // ignore secondary touches for now
+    if (e.pointerType === 'touch') {
+      this.touches.set(e.pointerId, this.toScreen(e));
+      if (this.touches.size === 2) {
+        // Second finger: hand the gesture to pinch/pan and cancel whatever the tool started.
+        const [a, b] = [...this.touches.values()] as [Vec2, Vec2];
+        this.pinch = pinchState(a, b);
+        if (this.activePointerId !== null) {
+          this.editor.tools.pointerUp(this.buildPointer(e, 'cancel'));
+          this.activePointerId = null;
+        }
+        return;
+      }
+    }
+    if (this.activePointerId !== null) return; // ignore secondary mouse buttons while dragging
     this.element.focus?.();
     this.activePointerId = e.pointerId;
     this.element.setPointerCapture?.(e.pointerId);
@@ -123,6 +141,18 @@ export class InputSystem {
   }
 
   private onPointerMove(e: PointerEvent): void {
+    if (e.pointerType === 'touch' && this.touches.has(e.pointerId)) {
+      this.touches.set(e.pointerId, this.toScreen(e));
+      if (this.pinch && this.touches.size >= 2) {
+        const [a, b] = [...this.touches.values()] as [Vec2, Vec2];
+        const next = pinchState(a, b);
+        const d = pinchDelta(this.pinch, next);
+        this.editor.viewport.panBy(d.pan.x, d.pan.y);
+        this.editor.viewport.zoomBy(d.scale, d.anchor);
+        this.pinch = next;
+        return;
+      }
+    }
     if (this.activePointerId !== null && e.pointerId !== this.activePointerId) return;
     const ev = this.buildPointer(e, 'move');
     this.editor.lastPointerWorld = ev.world;
@@ -132,6 +162,13 @@ export class InputSystem {
   }
 
   private onPointerUp(e: PointerEvent, type: 'up' | 'cancel'): void {
+    if (e.pointerType === 'touch') {
+      this.touches.delete(e.pointerId);
+      if (this.pinch) {
+        if (this.touches.size < 2) this.pinch = null;
+        return;
+      }
+    }
     if (this.activePointerId !== null && e.pointerId !== this.activePointerId) return;
     this.activePointerId = null;
     this.element.releasePointerCapture?.(e.pointerId);

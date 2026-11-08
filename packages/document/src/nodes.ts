@@ -1,7 +1,7 @@
 import type { NodeId } from '@sigma/shared';
 import { createNodeId } from '@sigma/shared';
 import type { NodeProps, NodePropsInputOf, NodePropsOf, NodeType } from './schema';
-import { CONTAINER_TYPES, NodePropsSchema } from './schema';
+import { CONTAINER_TYPES, FRAME_LIKE_TYPES, NodePropsSchema } from './schema';
 import { COLORS } from './color';
 
 /** A node as held in the scene graph: its props plus hierarchy links. */
@@ -14,6 +14,10 @@ export type SceneNodeOf<T extends NodeType> = Extract<SceneNode, { type: T }>;
 
 export function isContainer(node: Pick<SceneNode, 'type'>): boolean {
   return CONTAINER_TYPES.has(node.type);
+}
+
+export function isFrameLike(node: Pick<SceneNode, 'type'>): boolean {
+  return FRAME_LIKE_TYPES.has(node.type);
 }
 
 export type NodeDefaults<T extends NodeType> = Partial<Omit<NodePropsInputOf<T>, 'type' | 'id'>> & {
@@ -32,6 +36,9 @@ const DEFAULT_NAMES: Record<NodeType, string> = {
   TEXT: 'Text',
   IMAGE: 'Image',
   VECTOR: 'Vector',
+  COMPONENT: 'Component',
+  COMPONENT_SET: 'Component set',
+  INSTANCE: 'Instance',
 };
 
 /**
@@ -53,7 +60,12 @@ export function createNodeProps<T extends NodeType>(
   if (!('style' in props)) {
     switch (type) {
       case 'FRAME':
+      case 'COMPONENT':
         base.style = { fills: [{ type: 'SOLID', color: COLORS.defaultFrame }] };
+        break;
+      case 'COMPONENT_SET':
+      case 'INSTANCE':
+        base.style = { fills: [] };
         break;
       case 'RECTANGLE':
       case 'ELLIPSE':

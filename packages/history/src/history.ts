@@ -33,7 +33,7 @@ export class History {
   readonly events = new Emitter<HistoryEvents>();
   private undoStack: HistoryEntry[] = [];
   private redoStack: HistoryEntry[] = [];
-  private transaction: { name: string; commands: Command[] } | null = null;
+  private transaction: { name: string; commands: Command[]; depth: number } | null = null;
   private readonly limit: number;
   private readonly mergeWindowMs: number;
   private readonly now: () => number;
@@ -87,16 +87,51 @@ export class History {
     return true;
   }
 
+  /**
+   * Executes a follow-up command and glues it to the most recent history entry (or the open
+   * transaction) so that derived updates such as auto-layout undo together with their cause.
+   */
+  attach(command: Command): boolean {
+    if (!command.validate(this.graph)) return false;
+    command.execute(this.graph);
+    if (this.transaction) {
+      this.transaction.commands.push(command);
+      return true;
+    }
+    const last = this.undoStack[this.undoStack.length - 1];
+    if (!last) {
+      this.record(command, false);
+      return true;
+    }
+    if (last.command instanceof BatchCommand) last.command.append(command);
+    else {
+      const batch = new BatchCommand(last.command.name, [last.command, command]);
+      (batch as unknown as { executedCount: number }).executedCount = 2;
+      last.command = batch;
+    }
+    last.revision = this.graph.revision;
+    this.emitChange();
+    return true;
+  }
+
   /** Starts grouping subsequent commands into one entry until `commit()` or `abort()`. */
+  /** Nested calls join the outer transaction (committed when the outermost commits). */
   beginTransaction(name: string): void {
-    if (this.transaction) throw new Error('A transaction is already open');
-    this.transaction = { name, commands: [] };
+    if (this.transaction) {
+      this.transaction.depth++;
+      return;
+    }
+    this.transaction = { name, commands: [], depth: 1 };
   }
 
   /** Ends the transaction and records it as a single undoable entry. */
   commit(): boolean {
     const tx = this.transaction;
     if (!tx) throw new Error('No transaction is open');
+    if (tx.depth > 1) {
+      tx.depth--;
+      return true;
+    }
     this.transaction = null;
     if (tx.commands.length === 0) return false;
     const batch = new BatchCommand(tx.name, tx.commands);
@@ -110,6 +145,10 @@ export class History {
   abort(): void {
     const tx = this.transaction;
     if (!tx) throw new Error('No transaction is open');
+    if (tx.depth > 1) {
+      tx.depth--;
+      return;
+    }
     this.transaction = null;
     this.graph.batch(() => {
       for (let i = tx.commands.length - 1; i >= 0; i--)

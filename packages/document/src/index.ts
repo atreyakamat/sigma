@@ -5,3 +5,6 @@ export * from './bounds';
 export * from './migrations';
 export * from './scene-graph';
 export * from './diff';
+export * from './shape-path';
+export * from './components';
+export * from './layout';

@@ -6,6 +6,7 @@ import { LoginBody } from '@sigma/validation';
 import { Button } from '../../components/ui/Button';
 import { ApiRequestError, http } from '../../lib/api';
 import { useAuth } from './AuthProvider';
+import { useT } from '../../lib/i18n';
 
 export function LoginPage() {
   const { user } = useAuth();
@@ -16,6 +17,9 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [twoFactor, setTwoFactor] = useState(false);
+  const [code, setCode] = useState('');
+  const t = useT();
   const next = params.get('next') ?? '/';
   if (user) return <Navigate to={user.mustChangePassword ? '/change-password' : next} replace />;
 
@@ -26,7 +30,15 @@ export function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await http.post<MeResponse>('/auth/login', parsed.data);
+      const res = await http.post<MeResponse | { requiresTwoFactor: true }>(
+        '/auth/login',
+        parsed.data,
+      );
+      if ('requiresTwoFactor' in res) {
+        setTwoFactor(true);
+        setBusy(false);
+        return;
+      }
       qc.setQueryData(['me'], res.user);
       void navigate(res.user.mustChangePassword ? '/change-password' : next, { replace: true });
     } catch (err) {
@@ -35,6 +47,63 @@ export function LoginPage() {
       setBusy(false);
     }
   };
+
+  const submitCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await http.post<MeResponse>('/auth/login/2fa', { code });
+      qc.setQueryData(['me'], res.user);
+      void navigate(res.user.mustChangePassword ? '/change-password' : next, { replace: true });
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Could not reach the server');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (twoFactor) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-ink-900 p-6">
+        <form
+          onSubmit={submitCode}
+          className="w-full max-w-sm rounded-2xl border border-ink-700 bg-ink-850 p-8"
+          data-testid="two-factor-form"
+        >
+          <h1 className="text-[16px] font-semibold">{t('auth.twoFactorTitle')}</h1>
+          <p className="mb-4 mt-1 text-[12px] text-ink-400">{t('auth.twoFactorHint')}</p>
+          <label className="mb-4 block text-[12px]">
+            <span className="mb-1 block text-ink-300">{t('auth.code')}</span>
+            <input
+              className="field h-9"
+              autoFocus
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+          </label>
+          {error && (
+            <div
+              role="alert"
+              className="mb-3 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-200"
+            >
+              {error}
+            </div>
+          )}
+          <Button
+            type="submit"
+            variant="primary"
+            className="h-9 w-full"
+            disabled={busy || code.length < 6}
+          >
+            {t('auth.verify')}
+          </Button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-full items-center justify-center bg-ink-900 p-6">
@@ -46,11 +115,11 @@ export function LoginPage() {
           <img src="/favicon.svg" alt="" className="h-9 w-9" />
           <div>
             <div className="text-[16px] font-semibold tracking-tight">SIGMA</div>
-            <div className="text-[11px] text-ink-400">Sign in to your workspace</div>
+            <div className="text-[11px] text-ink-400">{t('auth.signInSubtitle')}</div>
           </div>
         </div>
         <label className="mb-3 block text-[12px]">
-          <span className="mb-1 block text-ink-300">Email</span>
+          <span className="mb-1 block text-ink-300">{t('auth.email')}</span>
           <input
             className="field h-9"
             type="email"
@@ -61,7 +130,7 @@ export function LoginPage() {
           />
         </label>
         <label className="mb-4 block text-[12px]">
-          <span className="mb-1 block text-ink-300">Password</span>
+          <span className="mb-1 block text-ink-300">{t('auth.password')}</span>
           <input
             className="field h-9"
             type="password"
@@ -79,11 +148,9 @@ export function LoginPage() {
           </div>
         )}
         <Button type="submit" variant="primary" className="h-9 w-full" disabled={busy}>
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy ? t('auth.signingIn') : t('auth.signIn')}
         </Button>
-        <p className="mt-4 text-[11px] text-ink-500">
-          Accounts are created by an administrator. Ask yours for an invitation password.
-        </p>
+        <p className="mt-4 text-[11px] text-ink-500">{t('auth.accountsByAdmin')}</p>
       </form>
     </div>
   );

@@ -60,6 +60,8 @@ export class SceneGraph {
   metadata: Record<string, unknown>;
 
   private nodes = new Map<NodeId, SceneNode>();
+  /** Projected (instance) nodes: present in the graph, excluded from serialization. */
+  private derived = new Set<NodeId>();
   private _pageIds: NodeId[] = [];
   private _revision = 0;
   private worldMatrixCache = new Map<NodeId, Mat2d>();
@@ -106,8 +108,23 @@ export class SceneGraph {
     const node = this.requireNode(id);
     const { parentId: _p, childIds, ...props } = node;
     const json: NodeJSON = { ...(props as NodeProps) };
-    if (isContainer(node)) json.children = childIds.map((c) => this.nodeToJSON(c));
+    if (isContainer(node))
+      json.children = childIds.filter((c) => !this.derived.has(c)).map((c) => this.nodeToJSON(c));
     return json;
+  }
+
+  /** Like nodeToJSON but keeps derived children (used to compare projections). */
+  nodeToJSONIncludingDerived(id: NodeId): NodeJSON {
+    const node = this.requireNode(id);
+    const { parentId: _p, childIds, ...props } = node;
+    const json: NodeJSON = { ...(props as NodeProps) };
+    if (isContainer(node)) json.children = childIds.map((c) => this.nodeToJSONIncludingDerived(c));
+    return json;
+  }
+
+  /** True for nodes projected from a component master (instance children). */
+  isDerived(id: NodeId): boolean {
+    return this.derived.has(id);
   }
 
   /* ------------------------------------------------------------------ queries */
@@ -276,7 +293,12 @@ export class SceneGraph {
    * Inserts a node. `parentId === null` inserts a page. Containers are inserted empty; use
    * `insertSubtree` to insert a tree. Returns the node id.
    */
-  insertNode(props: NodeProps, parentId: NodeId | null, index?: number): NodeId {
+  insertNode(
+    props: NodeProps,
+    parentId: NodeId | null,
+    index?: number,
+    options: { derived?: boolean } = {},
+  ): NodeId {
     const id = props.id as NodeId;
     if (this.nodes.has(id)) throw new Error(`Node "${id}" already exists`);
     if (parentId === null) {
@@ -289,17 +311,23 @@ export class SceneGraph {
     }
     const node = { ...props, id, parentId, childIds: [] } as SceneNode;
     this.nodes.set(id, node);
+    if (options.derived) this.derived.add(id);
     this.linkChild(parentId, id, index);
     this.commit({ added: [id], structural: true });
     return id;
   }
 
   /** Inserts a serialized subtree (validated) under `parentId`. Ids must not already exist. */
-  insertSubtreeJSON(json: NodeJSON, parentId: NodeId | null, index?: number): NodeId {
+  insertSubtreeJSON(
+    json: NodeJSON,
+    parentId: NodeId | null,
+    index?: number,
+    options: { derived?: boolean } = {},
+  ): NodeId {
     return this.batch(() => {
       const { children, ...props } = json;
-      const id = this.insertNode(props as NodeProps, parentId, index);
-      children?.forEach((child) => this.insertSubtreeJSON(child, id));
+      const id = this.insertNode(props as NodeProps, parentId, index, options);
+      children?.forEach((child) => this.insertSubtreeJSON(child, id, undefined, options));
       return id;
     });
   }
@@ -335,13 +363,24 @@ export class SceneGraph {
       throw new Error('A document must keep at least one page');
     }
     const index = this.getIndexInParent(id);
-    const nodes: SceneNode[] = [node];
+    const all: SceneNode[] = [node];
     this.traverse(id, (n) => {
-      nodes.push(n);
+      all.push(n);
     });
+    // Derived (projected) nodes are not part of the restorable subtree: projection recreates them.
+    const nodes = all
+      .filter((n) => !this.derived.has(n.id))
+      .map((n) =>
+        n.childIds.some((c) => this.derived.has(c))
+          ? { ...n, childIds: n.childIds.filter((c) => !this.derived.has(c)) }
+          : n,
+      );
     this.unlinkChild(node.parentId, id);
-    for (const n of nodes) this.nodes.delete(n.id);
-    this.commit({ removed: nodes.map((n) => n.id), structural: true });
+    for (const n of all) {
+      this.nodes.delete(n.id);
+      this.derived.delete(n.id);
+    }
+    this.commit({ removed: all.map((n) => n.id), structural: true });
     return { root: id, parentId: node.parentId, index, nodes };
   }
 
@@ -417,6 +456,22 @@ export class SceneGraph {
     siblings.splice(to, 0, id);
     this.setChildIds(node.parentId, siblings);
     this.commit({ updated: [id], structural: true });
+  }
+
+  /**
+   * Replaces the order of a parent's children (or of the pages when `parentId` is null). The set
+   * of ids must match the current children exactly; used when reconciling collaborative edits.
+   */
+  setChildOrder(parentId: NodeId | null, order: readonly NodeId[]): void {
+    const current = parentId ? this.requireNode(parentId).childIds : this._pageIds;
+    if (current.length !== order.length || new Set(order).size !== order.length)
+      throw new Error('Child order must be a permutation of the current children');
+    for (const id of order)
+      if (!current.includes(id))
+        throw new Error(`"${id}" is not a child of "${parentId ?? 'root'}"`);
+    if (current.every((id, i) => id === order[i])) return;
+    this.setChildIds(parentId, [...order]);
+    this.commit({ updated: parentId ? [parentId] : [], structural: true });
   }
 
   setName(name: string): void {

@@ -61,6 +61,9 @@ export function buildNodePath(
   switch (node.type) {
     case 'PAGE':
     case 'FRAME':
+    case 'COMPONENT':
+    case 'COMPONENT_SET':
+    case 'INSTANCE':
     case 'RECTANGLE':
     case 'IMAGE':
     case 'GROUP':
@@ -159,25 +162,54 @@ export function paintToCanvasStyle(
       if (img === undefined) return 'rgba(0,0,0,0.08)';
       if (img === null) return 'rgba(255,0,0,0.15)';
       if (paint.scaleMode === 'TILE') return ctx.createPattern(img, 'repeat');
-      const iw = img.width;
-      const ih = img.height;
-      let sx = bounds.width / iw;
-      let sy = bounds.height / ih;
-      if (paint.scaleMode === 'FILL') sx = sy = Math.max(sx, sy);
-      else if (paint.scaleMode === 'FIT') sx = sy = Math.min(sx, sy);
-      const dw = iw * sx;
-      const dh = ih * sy;
-      const dx = bounds.x + (bounds.width - dw) / 2;
-      const dy = bounds.y + (bounds.height - dh) / 2;
-      const pattern = ctx.createPattern(img, 'no-repeat');
-      if (!pattern) return null;
-      const m = new DOMMatrix([sx, 0, 0, sy, dx, dy]);
-      pattern.setTransform(m);
-      return pattern;
+      // Non-tiled images are drawn directly (see drawImagePaint); signal "handled elsewhere".
+      return null;
     }
     default:
       return null;
   }
+}
+
+/** Placement of an image inside bounds for FILL / FIT / STRETCH. */
+export function imagePlacement(
+  img: { width: number; height: number },
+  bounds: Rect,
+  mode: 'FILL' | 'FIT' | 'STRETCH' | 'TILE',
+): Rect {
+  let sx = bounds.width / img.width;
+  let sy = bounds.height / img.height;
+  if (mode === 'FILL') sx = sy = Math.max(sx, sy);
+  else if (mode === 'FIT') sx = sy = Math.min(sx, sy);
+  const dw = img.width * sx;
+  const dh = img.height * sy;
+  return {
+    x: bounds.x + (bounds.width - dw) / 2,
+    y: bounds.y + (bounds.height - dh) / 2,
+    width: dw,
+    height: dh,
+  };
+}
+
+/** Draws a non-tiled image paint clipped to the node outline. Returns false when not applicable. */
+function drawImagePaint(
+  ctx: CanvasRenderingContext2D,
+  node: SceneNode,
+  paint: Paint,
+  bounds: Rect,
+  images: ImageCache,
+): boolean {
+  if (paint.type !== 'IMAGE' || paint.scaleMode === 'TILE' || !paint.src) return false;
+  const img = images.get(paint.src);
+  if (!img) return false;
+  const place = imagePlacement(img, bounds, paint.scaleMode);
+  ctx.save();
+  ctx.beginPath();
+  buildNodePath(ctx, node, bounds);
+  ctx.clip();
+  ctx.globalAlpha *= paint.opacity;
+  ctx.drawImage(img as CanvasImageSource, place.x, place.y, place.width, place.height);
+  ctx.restore();
+  return true;
 }
 
 function applyStrokeStyle(
@@ -350,6 +382,7 @@ export function drawNode(dc: DrawContext, node: SceneNode): void {
     const fills: Paint[] = [node.image, ...style.fills];
     for (const fill of fills) {
       if (!fill.visible) continue;
+      if (drawImagePaint(ctx, node, fill, bounds, dc.images)) continue;
       const paintStyle = paintToCanvasStyle(ctx, fill, bounds, dc.images);
       if (!paintStyle) continue;
       ctx.beginPath();
@@ -360,6 +393,7 @@ export function drawNode(dc: DrawContext, node: SceneNode): void {
   } else if (node.type !== 'GROUP') {
     for (const fill of style.fills) {
       if (!fill.visible) continue;
+      if (drawImagePaint(ctx, node, fill, bounds, dc.images)) continue;
       ctx.beginPath();
       const fillable = buildNodePath(ctx, node, bounds);
       if (!fillable) continue;
@@ -373,7 +407,13 @@ export function drawNode(dc: DrawContext, node: SceneNode): void {
   // Children (frames clip)
   if (node.childIds.length > 0) {
     ctx.save();
-    if (node.type === 'FRAME' && node.clipsContent) {
+    if (
+      (node.type === 'FRAME' ||
+        node.type === 'COMPONENT' ||
+        node.type === 'COMPONENT_SET' ||
+        node.type === 'INSTANCE') &&
+      node.clipsContent
+    ) {
       ctx.beginPath();
       buildNodePath(ctx, node, bounds);
       ctx.clip();

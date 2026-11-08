@@ -12,3 +12,5 @@ export * from './input';
 export * from './clipboard';
 export * from './export';
 export * from './shortcuts';
+export * from './prototype';
+export * from './gestures';

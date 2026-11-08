@@ -14,7 +14,23 @@ export function registerDefaultShortcuts(editor: Editor): () => void {
     k.register('mod+d', () => void editor.ops.duplicateNodes(sel()), 'Duplicate'),
     k.register('mod+g', () => void editor.ops.groupSelection(), 'Group'),
     k.register('mod+shift+g', () => editor.ops.ungroupSelection(), 'Ungroup'),
-    k.register('mod+alt+k', () => void editor.ops.frameSelection(), 'Frame selection'),
+    k.register('mod+alt+f', () => void editor.ops.frameSelection(), 'Frame selection'),
+    k.register(
+      'mod+alt+k',
+      () => void editor.ops.createComponentFromSelection(),
+      'Create component',
+    ),
+    k.register(
+      'shift+a',
+      () => {
+        for (const id of sel()) {
+          const n = editor.graph.getNode(id);
+          if (n && 'layout' in n)
+            editor.ops.setLayout(id, { mode: n.layout.mode === 'NONE' ? 'VERTICAL' : 'NONE' });
+        }
+      },
+      'Toggle auto layout',
+    ),
     k.register(
       'mod+a',
       () => {
@@ -90,7 +106,18 @@ export function registerDefaultShortcuts(editor: Editor): () => void {
       'enter',
       () => {
         const id = editor.selection.first as NodeId | null;
-        if (id && editor.graph.getNode(id)?.type === 'TEXT') editor.requestTextEdit(id);
+        const type = id ? editor.graph.getNode(id)?.type : undefined;
+        if (id && type === 'TEXT') editor.requestTextEdit(id);
+        else if (
+          id &&
+          (type === 'VECTOR' ||
+            type === 'RECTANGLE' ||
+            type === 'ELLIPSE' ||
+            type === 'POLYGON' ||
+            type === 'STAR' ||
+            type === 'LINE')
+        )
+          editor.ops.editVector(id);
         else if (id) {
           // Enter drills into a group/frame: select its first child.
           const child = editor.graph.getChildIds(id)[0];

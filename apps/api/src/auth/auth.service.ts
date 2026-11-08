@@ -1,5 +1,17 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { decryptSecret, encryptSecret } from '../common/crypto';
+import { generateRecoveryCodes, generateTotpSecret, otpauthUrl, verifyTotp } from '../common/totp';
+import type {
+  SessionDto,
+  TwoFactorEnableResponse,
+  TwoFactorSetupResponse,
+} from '@sigma/validation';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ApiToken, Session, User } from '../../prisma/generated/client';
 import type { ApiTokenDto, CreatedTokenResponse } from '@sigma/validation';
@@ -24,23 +36,142 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
-  /** Verifies credentials and opens a session. Returns the raw token for the cookie. */
-  async login(email: string, password: string): Promise<{ user: User; token: string }> {
+  /** Verifies credentials. Returns the user; the caller decides between a session and a 2FA challenge. */
+  async verifyCredentials(email: string, password: string): Promise<User> {
     const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     const ok = user
       ? await verifyPassword(password, user.passwordHash)
       : await verifyPassword(password, DUMMY_HASH);
     if (!user || !ok) throw new UnauthorizedException('Invalid email or password');
     if (!user.active) throw new ForbiddenException('This account is deactivated');
+    return user;
+  }
+
+  /** Opens a session for a verified user. Returns the raw token for the cookie. */
+  async openSession(user: User, meta: { userAgent?: string; ip?: string } = {}): Promise<string> {
     const token = randomBytes(32).toString('base64url');
     await this.prisma.session.create({
       data: {
         tokenHash: this.hashToken(token),
         userId: user.id,
         expiresAt: new Date(Date.now() + this.ttlMs),
+        userAgent: meta.userAgent?.slice(0, 255) ?? null,
+        ip: meta.ip ?? null,
       },
     });
-    return { user, token };
+    return token;
+  }
+
+  /** Verifies credentials and opens a session (used when 2FA is off). */
+  async login(
+    email: string,
+    password: string,
+    meta: { userAgent?: string; ip?: string } = {},
+  ): Promise<{ user: User; token: string }> {
+    const user = await this.verifyCredentials(email, password);
+    return { user, token: await this.openSession(user, meta) };
+  }
+
+  /* ----------------------------------------------------------- sessions */
+
+  async listSessions(userId: string, currentId: string): Promise<SessionDto[]> {
+    const rows = await this.prisma.session.findMany({
+      where: { userId, expiresAt: { gt: new Date() } },
+      orderBy: { lastSeenAt: 'desc' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      current: r.id === currentId,
+      createdAt: r.createdAt.toISOString(),
+      lastSeenAt: r.lastSeenAt.toISOString(),
+      expiresAt: r.expiresAt.toISOString(),
+      userAgent: r.userAgent,
+      ip: r.ip,
+    }));
+  }
+
+  async revokeSession(userId: string, id: string): Promise<boolean> {
+    return (await this.prisma.session.deleteMany({ where: { id, userId } })).count > 0;
+  }
+
+  async revokeOtherSessions(userId: string, keepId: string): Promise<number> {
+    return (await this.prisma.session.deleteMany({ where: { userId, NOT: { id: keepId } } })).count;
+  }
+
+  /* ----------------------------------------------------------- two-factor */
+
+  private pendingSecrets = new Map<string, string>();
+
+  setupTwoFactor(user: User): TwoFactorSetupResponse {
+    const secret = generateTotpSecret();
+    this.pendingSecrets.set(user.id, secret);
+    return { secret, otpauthUrl: otpauthUrl('SIGMA', user.email, secret) };
+  }
+
+  async enableTwoFactor(user: User, code: string): Promise<TwoFactorEnableResponse> {
+    const secret = this.pendingSecrets.get(user.id);
+    if (!secret || !verifyTotp(secret, code))
+      throw new BadRequestException('The code is not valid for the new secret');
+    const recoveryCodes = generateRecoveryCodes();
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        twoFactorEnabled: true,
+        totpSecret: encryptSecret(secret, this.config.get('sessionSecret', { infer: true })),
+        recoveryCodes: recoveryCodes.map((c) => createHash('sha256').update(c).digest('hex')),
+      },
+    });
+    this.pendingSecrets.delete(user.id);
+    return { recoveryCodes };
+  }
+
+  async disableTwoFactor(user: User, code: string): Promise<void> {
+    if (!(await this.checkSecondFactor(user, code)))
+      throw new UnauthorizedException('Invalid code');
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { twoFactorEnabled: false, totpSecret: null, recoveryCodes: [] },
+    });
+  }
+
+  /** Validates a TOTP code or consumes a recovery code. */
+  async checkSecondFactor(user: User, code: string): Promise<boolean> {
+    const fresh = await this.prisma.user.findUnique({ where: { id: user.id } });
+    if (!fresh?.twoFactorEnabled || !fresh.totpSecret) return false;
+    const secret = decryptSecret(
+      fresh.totpSecret,
+      this.config.get('sessionSecret', { infer: true }),
+    );
+    if (verifyTotp(secret, code)) return true;
+    const hash = createHash('sha256').update(code.trim().toLowerCase()).digest('hex');
+    const codes = (fresh.recoveryCodes as string[] | null) ?? [];
+    if (!codes.includes(hash)) return false;
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { recoveryCodes: codes.filter((c) => c !== hash) },
+    });
+    return true;
+  }
+
+  /** Short-lived signed challenge handed to the browser between password and second factor. */
+  issueChallenge(userId: string): string {
+    const exp = Date.now() + 5 * 60_000;
+    const payload = `${userId}.${exp}`;
+    const sig = createHash('sha256')
+      .update(`${payload}.${this.config.get('sessionSecret', { infer: true })}`)
+      .digest('base64url');
+    return `${payload}.${sig}`;
+  }
+
+  async resolveChallenge(token: string): Promise<User | null> {
+    const [userId, exp, sig] = token.split('.');
+    if (!userId || !exp || !sig) return null;
+    const expected = createHash('sha256')
+      .update(`${userId}.${exp}.${this.config.get('sessionSecret', { infer: true })}`)
+      .digest('base64url');
+    if (expected !== sig || Number(exp) < Date.now()) return null;
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    return user && user.active ? user : null;
   }
 
   /** Resolves a cookie token to its user; slides expiry at most hourly. */

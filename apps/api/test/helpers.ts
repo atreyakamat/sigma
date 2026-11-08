@@ -7,6 +7,7 @@ import request from 'supertest';
 import type { Response } from 'supertest';
 import { PrismaClient } from '../prisma/generated/client';
 import { AppModule } from '../src/app.module';
+import { metricsMiddleware } from '../src/metrics/metrics';
 
 export const ORIGIN = 'http://localhost:5173';
 export const ADMIN = { email: 'admin@sigma.local', password: 'admin-password-123' };
@@ -24,6 +25,7 @@ export async function createApp(): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleRef.createNestApplication();
   app.setGlobalPrefix('api/v1');
+  app.use(metricsMiddleware);
   app.use(cookieParser());
   await app.init();
   return app;

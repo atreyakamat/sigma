@@ -1,4 +1,14 @@
-import { ChevronDown, KeyRound, LogOut, Shield, Terminal } from 'lucide-react';
+import {
+  ChevronDown,
+  Globe,
+  KeyRound,
+  ListChecks,
+  LogOut,
+  Shield,
+  ShieldCheck,
+  Terminal,
+} from 'lucide-react';
+import { LOCALES, useI18n, useT } from '../lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../features/authentication/AuthProvider';
@@ -11,6 +21,8 @@ export function AppHeader({
   actions?: React.ReactNode;
 }) {
   const { user, logout } = useAuth();
+  const t = useT();
+  const { locale, setLocale } = useI18n();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -48,7 +60,7 @@ export function AppHeader({
             to="/admin/users"
             className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[12px] text-ink-300 hover:bg-ink-700 hover:text-ink-100"
           >
-            <Shield size={14} /> Users
+            <Shield size={14} /> {t('nav.users')}
           </Link>
         )}
         <div className="relative" ref={ref}>
@@ -72,21 +84,50 @@ export function AppHeader({
               </div>
               <button
                 className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-ink-700"
+                onClick={() => void navigate('/settings/security')}
+              >
+                <ShieldCheck size={13} /> {t('nav.security')}
+              </button>
+              {user?.systemRole === 'ADMIN' && (
+                <button
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-ink-700"
+                  onClick={() => void navigate('/admin/audit')}
+                >
+                  <ListChecks size={13} /> {t('nav.audit')}
+                </button>
+              )}
+              <button
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-ink-700"
                 onClick={() => void navigate('/settings/tokens')}
               >
-                <Terminal size={13} /> API tokens
+                <Terminal size={13} /> {t('nav.tokens')}
               </button>
+              <label className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-[12px] hover:bg-ink-700">
+                <Globe size={13} /> {t('nav.language')}
+                <select
+                  className="ml-auto bg-ink-800 text-[12px]"
+                  value={locale}
+                  onChange={(e) => setLocale(e.target.value as typeof locale)}
+                  aria-label={t('nav.language')}
+                >
+                  {LOCALES.map((l) => (
+                    <option key={l.value} value={l.value}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-ink-700"
                 onClick={() => void navigate('/change-password')}
               >
-                <KeyRound size={13} /> Change password
+                <KeyRound size={13} /> {t('nav.changePassword')}
               </button>
               <button
                 className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-ink-700"
                 onClick={() => void logout().then(() => navigate('/login'))}
               >
-                <LogOut size={13} /> Sign out
+                <LogOut size={13} /> {t('nav.signOut')}
               </button>
             </div>
           )}

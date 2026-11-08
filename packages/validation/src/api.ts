@@ -26,6 +26,7 @@ export interface UserDto {
   systemRole: SystemRole;
   active: boolean;
   mustChangePassword: boolean;
+  twoFactorEnabled: boolean;
   createdAt: string;
 }
 export interface MeResponse {
@@ -288,6 +289,8 @@ export interface PresenceUser {
 }
 export type PresenceClientMessage =
   | { type: 'join'; documentId: string }
+  /** A Yjs update (base64) produced by the sender's local edits. */
+  | { type: 'update'; update: string }
   | {
       type: 'awareness';
       pageId: string | null;
@@ -299,4 +302,77 @@ export type PresenceServerMessage =
   | { type: 'awareness'; user: PresenceUser }
   | { type: 'leave'; userId: string }
   | { type: 'saved'; revision: number; userId: string; userName: string }
+  /** Full shared state (base64 Yjs update) sent on join and after the document is replaced over HTTP. */
+  | { type: 'sync'; state: string; revision: number }
+  /** A Yjs update from another participant. */
+  | { type: 'update'; update: string; userId: string }
   | { type: 'error'; message: string };
+
+/* ---------------- shared component libraries */
+export const PublishComponentsBody = z
+  .object({ componentIds: z.array(z.string().min(1)).min(1).max(200) })
+  .strict();
+export type PublishComponentsInput = z.infer<typeof PublishComponentsBody>;
+export interface LibraryComponentDto {
+  id: string;
+  workspaceId: string;
+  documentId: string;
+  componentId: string;
+  name: string;
+  description: string;
+  thumbnail: string | null;
+  version: number;
+  publishedById: string;
+  publishedAt: string;
+}
+export interface LibraryComponentContentDto extends LibraryComponentDto {
+  /** The COMPONENT node (with children) as document JSON. */
+  content: DocumentJSON['pages'][number];
+}
+
+/* ---------------- assets */
+export interface AssetDto {
+  id: string;
+  workspaceId: string;
+  filename: string;
+  mimeType: string;
+  fileSize: number;
+  width: number | null;
+  height: number | null;
+  /** Session-authenticated content URL (relative). */
+  url: string;
+  uploadedById: string;
+  createdAt: string;
+}
+export const SignedUrlBody = z
+  .object({
+    expiresInSeconds: z
+      .number()
+      .int()
+      .min(10)
+      .max(60 * 60 * 24 * 30)
+      .default(3600),
+  })
+  .strict();
+
+/* ---------------- sessions & two-factor */
+export interface SessionDto {
+  id: string;
+  current: boolean;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  userAgent: string | null;
+  ip: string | null;
+}
+export const TwoFactorCodeBody = z.object({ code: z.string().trim().min(6).max(16) }).strict();
+export interface TwoFactorSetupResponse {
+  secret: string;
+  otpauthUrl: string;
+}
+export interface TwoFactorEnableResponse {
+  recoveryCodes: string[];
+}
+export interface LoginChallengeResponse {
+  requiresTwoFactor: true;
+}

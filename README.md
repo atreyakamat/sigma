@@ -30,8 +30,20 @@ co-editing (Yjs) and vector tools (pen, booleans) are next. See
 - Version history with named checkpoints, hourly automatic snapshots, visual diff and restore.
 - Developer handoff: server-rendered PNG/SVG URLs, design tokens as JSON/CSS, personal API tokens,
   and a `sigma` CLI. Frame review states (draft / in review / approved) feed the handoff endpoints.
-- Per-frame locks enforced by the server, comments with threads and pins, live presence with
-  cursors and selections, offline edit recovery and session re-login without losing work.
+- Per-frame locks enforced by the server, comments with threads and pins anchored to layers, live
+  presence with cursors and selections, offline edit recovery and session re-login without losing
+  work.
+- Realtime co-editing: everyone in a file edits the same CRDT document; changes appear live and are
+  persisted by the server (ADR-0012).
+- Vector tools: pen, pencil, vector edit mode, boolean operations, SVG import as editable paths.
+- Design systems: components, variants, instances with overrides, auto layout, constraints and
+  shared workspace libraries.
+- Prototyping: interactions, transitions, connection arrows and a preview player.
+- Gradient editing, image uploads stored as workspace assets with signed URLs, server-side
+  thumbnails.
+- Security and operations: TOTP two-factor authentication with recovery codes, session listing and
+  revocation, administrative audit log, Prometheus metrics, optional HTTPS edge (Caddy), backup and
+  restore scripts. Works on tablets (floating panels, pinch-to-zoom) and in English or Hindi.
 
 ## Self-hosting (Docker)
 
@@ -42,8 +54,13 @@ docker compose logs api | grep -A3 'first start'   # initial admin password (unl
 ```
 
 Open http://localhost:3000, sign in as `admin@sigma.local`, set your password, then create users
-under **Users** and add them to workspaces as viewers, editors or admins. Put the stack behind an
-HTTPS reverse proxy and set `PUBLIC_URL` and `COOKIE_SECURE=true` before exposing it.
+under **Users** and add them to workspaces as viewers, editors or admins.
+
+HTTPS: set `PUBLIC_HOST` (a DNS name pointing at the machine), `PUBLIC_URL=https://<host>` and
+`COOKIE_SECURE=true` in `.env.docker`, then start with
+`docker compose --env-file .env.docker --profile https up -d --build`; Caddy obtains certificates
+automatically. Backups: `scripts/backup.sh` (database dump + uploaded assets) and
+`scripts/restore.sh <dir>`. See `docs/OPERATIONS.md`.
 
 ## Development
 
@@ -88,7 +105,8 @@ docs                   architecture, engine, API, database, decisions (ADRs)
 | [docs/API.md](docs/API.md)                     | API conventions and endpoint status                  |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)     | Local setup, scripts, how to extend                  |
 | [docs/TESTING.md](docs/TESTING.md)             | Test strategy and commands                           |
-| [docs/SECURITY.md](docs/SECURITY.md)           | Implemented and planned controls                     |
+| [docs/SECURITY.md](docs/SECURITY.md)           | Implemented controls and known limits                |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md)       | HTTPS, backups, monitoring, upgrades                 |
 | [docs/decisions/](docs/decisions/)             | Architecture decision records                        |
 | [docs/engine/](docs/engine/)                   | Benchmark methodology and results                    |
 | [CONTRIBUTING.md](CONTRIBUTING.md)             | Workflow and rules                                   |

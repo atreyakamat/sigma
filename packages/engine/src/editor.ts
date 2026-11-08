@@ -1,5 +1,5 @@
 import type { DocumentJSON, SceneChange, SceneNode, TextStyle } from '@sigma/document';
-import { SceneGraph } from '@sigma/document';
+import { SceneGraph, projectInstances } from '@sigma/document';
 import type { Rect, Vec2 } from '@sigma/geometry';
 import { rect as R } from '@sigma/geometry';
 import type { NodeId } from '@sigma/shared';
@@ -143,9 +143,10 @@ export class Editor {
   /* ----------------------------------------------------------- document */
 
   private resolveGraph(doc: EditorOptions['document']): SceneGraph {
-    if (doc instanceof SceneGraph) return doc;
-    if (doc) return SceneGraph.fromJSON(doc);
-    return SceneGraph.createEmpty();
+    const graph =
+      doc instanceof SceneGraph ? doc : doc ? SceneGraph.fromJSON(doc) : SceneGraph.createEmpty();
+    projectInstances(graph);
+    return graph;
   }
 
   /** Replaces the document. History and selection reset. */
@@ -184,7 +185,18 @@ export class Editor {
     ];
   }
 
+  private projecting = false;
+
   private onSceneChange(change: SceneChange): void {
+    // Keep instance projections in sync with their masters (re-entrant changes are coalesced).
+    if (!this.projecting) {
+      this.projecting = true;
+      try {
+        projectInstances(this.graph);
+      } finally {
+        this.projecting = false;
+      }
+    }
     if (this.renderer) {
       if (change.structural || change.added.length || change.removed.length) {
         this.renderer.invalidateAll();

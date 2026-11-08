@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { PresenceGateway } from './collaboration/presence.gateway';
+import { metricsMiddleware } from './metrics/metrics';
 import type { AppConfig } from './config/configuration';
 
 export const GLOBAL_PREFIX = 'api/v1';
@@ -17,6 +18,7 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix(GLOBAL_PREFIX);
   if (config.get('trustProxy', { infer: true }))
     app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  app.use(metricsMiddleware);
   app.use(helmet());
   app.use(cookieParser());
   app.enableCors({

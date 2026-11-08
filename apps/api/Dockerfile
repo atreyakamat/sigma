@@ -19,7 +19,9 @@ RUN pnpm --filter @sigma/api build \
 FROM node:${NODE_VERSION}-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
-RUN addgroup -S sigma && adduser -S sigma -G sigma
+RUN addgroup -S sigma && adduser -S sigma -G sigma \
+ && mkdir -p /data && chown sigma:sigma /data
+VOLUME /data
 COPY --from=build --chown=sigma:sigma /out/node_modules ./node_modules
 COPY --from=build --chown=sigma:sigma /out/package.json ./package.json
 COPY --from=build --chown=sigma:sigma /out/dist ./dist

@@ -1,0 +1,13 @@
+# TLS edge for the SIGMA stack (docker compose --profile https).
+# PUBLIC_HOST is injected from .env.docker; for a bare IP or `localhost` Caddy issues a self-signed
+# certificate, for a public DNS name it uses Let's Encrypt.
+{$PUBLIC_HOST} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	reverse_proxy web:80
+}

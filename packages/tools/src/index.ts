@@ -11,6 +11,9 @@ import {
   StarTool,
 } from './shape-tool';
 import { TextTool } from './text-tool';
+import { PenTool } from './pen-tool';
+import { PencilTool } from './pencil-tool';
+import { VectorEditTool } from './vector-edit-tool';
 
 export * from './base-tool';
 export * from './hand-tool';
@@ -18,6 +21,9 @@ export * from './select-tool';
 export * from './shape-tool';
 export * from './text-tool';
 export * from './image-tool';
+export * from './pen-tool';
+export * from './pencil-tool';
+export * from './vector-edit-tool';
 
 export interface DefaultTools {
   select: SelectTool;
@@ -30,6 +36,9 @@ export interface DefaultTools {
   star: StarTool;
   text: TextTool;
   image: ImageTool;
+  pen: PenTool;
+  pencil: PencilTool;
+  vectorEdit: VectorEditTool;
 }
 
 /** Registers the default tool set, binds their shortcuts, and activates the select tool. */
@@ -45,6 +54,9 @@ export function registerDefaultTools(editor: Editor): DefaultTools {
     star: new StarTool(editor),
     text: new TextTool(editor),
     image: new ImageTool(editor),
+    pen: new PenTool(editor),
+    pencil: new PencilTool(editor),
+    vectorEdit: new VectorEditTool(editor),
   };
   for (const tool of Object.values(tools) as EditorTool[]) {
     editor.tools.register(tool);

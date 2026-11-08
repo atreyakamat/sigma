@@ -2,6 +2,9 @@
 
 ## Status
 
+Superseded by [ADR-0012](./0012-realtime-crdt-rooms.md) (2026-11-08), which implements the Yjs
+direction with rooms persisted into `documents.content` instead of an update log. Original text:
+
 Proposed. **Not implemented.** No collaboration code exists and `yjs` is not a dependency of any
 package. This record captures the direction that earlier decisions (ADR-0003, ADR-0005, the
 database schema) were shaped around, so that it is reviewed before Milestone 3+ work starts.

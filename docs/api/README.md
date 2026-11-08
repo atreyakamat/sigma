@@ -7,8 +7,7 @@ NestJS 12 + Prisma 7 (PostgreSQL). Endpoint reference, auth model and roles: [..
 `auth` (login/logout/me/change-password, global `AuthGuard`), `users` (system-admin user
 management), `permissions` (`PermissionsService.assert(user, workspaceId, permission)`),
 `workspaces` (+ members), `projects`, `documents`, `health`, `bootstrap` (first admin), `prisma`,
-`config`. Placeholder modules for later milestones: assets, comments, versions, collaboration,
-folders, memberships.
+`config`. All feature modules are implemented: auth (sessions, tokens, 2FA), users, workspaces, projects, documents, versions, exports, comments, assets, libraries, collaboration (presence + realtime rooms), audit, metrics.
 
 ## Environment
 

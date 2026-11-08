@@ -21,6 +21,9 @@ export const FRAME_PRESETS: { name: string; width: number; height: number }[] = 
 ];
 
 export interface CommandHost {
+  importSvg(): void;
+  openPreview(): void;
+  togglePrototypeMode(): void;
   openExport(): void;
   openShortcuts(): void;
   openHistory(): void;
@@ -167,7 +170,7 @@ export function buildCommands(
       id: 'frame-sel',
       title: 'Frame selection',
       group: 'Arrange',
-      shortcut: '⌥⌘K',
+      shortcut: '⌥⌘F',
       enabled: () => writable() && hasSel(),
       run: () => editor.ops.frameSelection(),
     },
@@ -247,6 +250,147 @@ export function buildCommands(
           sel(),
           sel().some((id) => !editor.graph.getNode(id)?.visible),
         ),
+    },
+    {
+      id: 'create-component',
+      title: 'Create component',
+      group: 'Arrange',
+      shortcut: '⌥⌘K',
+      keywords: 'master symbol',
+      enabled: () => writable() && hasSel(),
+      run: () => editor.ops.createComponentFromSelection(),
+    },
+    {
+      id: 'create-component-set',
+      title: 'Combine as variants (component set)',
+      group: 'Arrange',
+      keywords: 'variant',
+      enabled: () =>
+        writable() && sel().some((id) => editor.graph.getNode(id)?.type === 'COMPONENT'),
+      run: () => editor.ops.createComponentSet(),
+    },
+    {
+      id: 'detach',
+      title: 'Detach instance',
+      group: 'Arrange',
+      enabled: () =>
+        writable() && sel().some((id) => editor.graph.getNode(id)?.type === 'INSTANCE'),
+      run: () => {
+        const id = sel().find((i) => editor.graph.getNode(i)?.type === 'INSTANCE');
+        if (id) editor.ops.detachInstance(id);
+      },
+    },
+    {
+      id: 'reset-overrides',
+      title: 'Reset instance overrides',
+      group: 'Arrange',
+      enabled: () =>
+        writable() && sel().some((id) => editor.graph.getNode(id)?.type === 'INSTANCE'),
+      run: () =>
+        sel()
+          .filter((i) => editor.graph.getNode(i)?.type === 'INSTANCE')
+          .forEach((i) => editor.ops.resetOverrides(i)),
+    },
+    {
+      id: 'auto-layout',
+      title: 'Add / remove auto layout',
+      group: 'Arrange',
+      shortcut: '⇧A',
+      keywords: 'flex row column',
+      enabled: () =>
+        writable() &&
+        sel().some((id) => {
+          const n = editor.graph.getNode(id);
+          return !!n && 'layout' in n;
+        }),
+      run: () =>
+        sel().forEach((id) => {
+          const n = editor.graph.getNode(id);
+          if (n && 'layout' in n)
+            editor.ops.setLayout(id, { mode: n.layout.mode === 'NONE' ? 'VERTICAL' : 'NONE' });
+        }),
+    },
+    {
+      id: 'go-to-master',
+      title: 'Go to main component',
+      group: 'View',
+      enabled: () =>
+        editor.selection.size === 1 &&
+        editor.graph.getNode(editor.selection.first!)?.type === 'INSTANCE',
+      run: () => {
+        const n = editor.graph.getNode(editor.selection.first!);
+        if (n?.type === 'INSTANCE' && editor.graph.hasNode(n.componentId as never)) {
+          editor.selection.set([n.componentId as never]);
+          editor.zoomToSelection();
+        }
+      },
+    },
+    {
+      id: 'bool-union',
+      title: 'Boolean: union',
+      group: 'Arrange',
+      keywords: 'merge combine',
+      enabled: () => writable() && editor.selection.size >= 2,
+      run: () => editor.ops.booleanSelection('union'),
+    },
+    {
+      id: 'bool-subtract',
+      title: 'Boolean: subtract',
+      group: 'Arrange',
+      keywords: 'minus cut',
+      enabled: () => writable() && editor.selection.size >= 2,
+      run: () => editor.ops.booleanSelection('subtract'),
+    },
+    {
+      id: 'bool-intersect',
+      title: 'Boolean: intersect',
+      group: 'Arrange',
+      enabled: () => writable() && editor.selection.size >= 2,
+      run: () => editor.ops.booleanSelection('intersect'),
+    },
+    {
+      id: 'bool-exclude',
+      title: 'Boolean: exclude',
+      group: 'Arrange',
+      keywords: 'xor',
+      enabled: () => writable() && editor.selection.size >= 2,
+      run: () => editor.ops.booleanSelection('exclude'),
+    },
+    {
+      id: 'edit-path',
+      title: 'Edit path (anchors and handles)',
+      group: 'Edit',
+      shortcut: '↵',
+      enabled: () => writable() && editor.selection.size === 1,
+      run: () => editor.ops.editVector(editor.selection.first!),
+    },
+    {
+      id: 'flatten',
+      title: 'Flatten to vector',
+      group: 'Arrange',
+      keywords: 'outline',
+      enabled: () => writable() && hasSel(),
+      run: () => editor.ops.flattenToVector(editor.ops.topLevelOf(sel())),
+    },
+    {
+      id: 'preview',
+      title: 'Preview prototype',
+      group: 'View',
+      keywords: 'play present',
+      run: host.openPreview,
+    },
+    {
+      id: 'prototype-mode',
+      title: 'Show / hide prototype connections',
+      group: 'View',
+      run: host.togglePrototypeMode,
+    },
+    {
+      id: 'import-svg',
+      title: 'Import SVG as vectors…',
+      group: 'File',
+      enabled: writable,
+      run: host.importSvg,
     },
     {
       id: 'zoom-fit',
