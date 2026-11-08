@@ -1,0 +1,9 @@
+process.env['DATABASE_URL'] ??= 'postgresql://sigma:sigma@localhost:5432/sigma_test?schema=public';
+process.env['SESSION_SECRET'] ??= 'integration-test-secret';
+process.env['CORS_ORIGIN'] ??= 'http://localhost:5173';
+process.env['BOOTSTRAP_ADMIN_EMAIL'] ??= 'admin@sigma.local';
+process.env['BOOTSTRAP_ADMIN_PASSWORD'] ??= 'admin-password-123';
+process.env['BOOTSTRAP_ADMIN_NAME'] ??= 'Root Admin';
+delete process.env['REDIS_URL'];
+delete process.env['S3_ENDPOINT'];
+process.env['LOGIN_RATE_LIMIT'] ??= '1000';

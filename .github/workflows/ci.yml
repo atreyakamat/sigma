@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        # Version comes from the "packageManager" field in package.json.
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Typecheck, lint, test, build
+        run: pnpm turbo run typecheck lint test build
+
+  api-migrations:
+    name: API migrations apply to PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: sigma
+          POSTGRES_USER: sigma
+          POSTGRES_PASSWORD: sigma
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sigma -d sigma"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://sigma:sigma@localhost:5432/sigma?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        run: pnpm --filter @sigma/api exec prisma migrate deploy
+      - name: API integration tests
+        run: pnpm --filter @sigma/api test:integration
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Verify no schema drift
+        run: >-
+          pnpm --filter @sigma/api exec prisma migrate diff
+          --from-config-datasource
+          --to-schema prisma/schema.prisma
+          --exit-code

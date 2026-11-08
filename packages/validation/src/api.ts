@@ -1,0 +1,302 @@
+/**
+ * HTTP API contract (prefix /api/v1). Request bodies are zod schemas (validated by the API,
+ * typed on the client); response shapes are plain interfaces. Session cookie: `sigma_session`.
+ */
+import { z } from 'zod';
+import type { DocumentJSON } from '@sigma/document';
+import { DocumentJSONSchema } from '@sigma/document';
+import { EmailSchema, NameSchema, PasswordSchema, SlugSchema } from './base';
+
+export const SystemRoleSchema = z.enum(['ADMIN', 'MEMBER']);
+export type SystemRole = z.infer<typeof SystemRoleSchema>;
+export const WorkspaceRoleSchema = z.enum(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']);
+export type WorkspaceRole = z.infer<typeof WorkspaceRoleSchema>;
+
+/* ---------------- auth */
+export const LoginBody = z
+  .object({ email: EmailSchema, password: z.string().min(1).max(128) })
+  .strict();
+export const ChangePasswordBody = z
+  .object({ currentPassword: z.string().min(1).max(128), newPassword: PasswordSchema })
+  .strict();
+export interface UserDto {
+  id: string;
+  name: string;
+  email: string;
+  systemRole: SystemRole;
+  active: boolean;
+  mustChangePassword: boolean;
+  createdAt: string;
+}
+export interface MeResponse {
+  user: UserDto;
+}
+
+/* ---------------- users (system admin only) */
+export const CreateUserBody = z
+  .object({
+    name: NameSchema,
+    email: EmailSchema,
+    systemRole: SystemRoleSchema.default('MEMBER'),
+    password: PasswordSchema.optional(),
+  })
+  .strict();
+export const UpdateUserBody = z
+  .object({
+    name: NameSchema.optional(),
+    systemRole: SystemRoleSchema.optional(),
+    active: z.boolean().optional(),
+  })
+  .strict();
+/** Returned once, when an admin creates a user or resets a password. */
+export interface CreatedUserResponse {
+  user: UserDto;
+  /** Generated (or supplied) initial password; shown once, user must change it on first login. */
+  temporaryPassword: string;
+}
+
+/* ---------------- workspaces & members */
+export const CreateWorkspaceBody = z
+  .object({ name: NameSchema, slug: SlugSchema.optional() })
+  .strict();
+export const UpdateWorkspaceBody = z.object({ name: NameSchema.optional() }).strict();
+export const AddMemberBody = z
+  .object({ email: EmailSchema, role: WorkspaceRoleSchema.exclude(['OWNER']) })
+  .strict();
+export const UpdateMemberBody = z.object({ role: WorkspaceRoleSchema.exclude(['OWNER']) }).strict();
+export interface WorkspaceDto {
+  id: string;
+  name: string;
+  slug: string;
+  ownerId: string;
+  /** The calling user's role in this workspace. */
+  role: WorkspaceRole;
+  createdAt: string;
+}
+export interface MemberDto {
+  userId: string;
+  name: string;
+  email: string;
+  role: WorkspaceRole;
+  joinedAt: string;
+}
+
+/* ---------------- projects */
+export const CreateProjectBody = z
+  .object({ name: NameSchema, description: z.string().max(2000).optional() })
+  .strict();
+export const UpdateProjectBody = z
+  .object({ name: NameSchema.optional(), description: z.string().max(2000).nullable().optional() })
+  .strict();
+export interface ProjectDto {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ---------------- documents */
+export const CreateDocumentBody = z
+  .object({ name: NameSchema, content: DocumentJSONSchema.optional() })
+  .strict();
+export const UpdateDocumentBody = z.object({ name: NameSchema.optional() }).strict();
+export const SaveContentBody = z
+  .object({
+    content: DocumentJSONSchema,
+    /** Revision the client loaded; a mismatch returns 409 with the server revision. */
+    baseRevision: z.number().int().nonnegative(),
+    thumbnail: z.string().max(2_000_000).nullable().optional(),
+  })
+  .strict();
+export interface DocumentSummaryDto {
+  id: string;
+  projectId: string;
+  workspaceId: string;
+  name: string;
+  revision: number;
+  thumbnailUrl: string | null;
+  nodeCount: number;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface DocumentDto extends DocumentSummaryDto {
+  content: DocumentJSON;
+  /** Caller's effective role for this document (derived from workspace membership). */
+  role: WorkspaceRole;
+}
+export interface SaveContentResponse {
+  revision: number;
+  updatedAt: string;
+}
+export interface ConflictResponse {
+  statusCode: 409;
+  message: string;
+  revision: number;
+}
+
+/* ---------------- errors */
+export interface ApiError {
+  statusCode: number;
+  message: string | string[];
+  error?: string;
+}
+
+export type LoginInput = z.infer<typeof LoginBody>;
+export type ChangePasswordInput = z.infer<typeof ChangePasswordBody>;
+export type CreateUserInput = z.infer<typeof CreateUserBody>;
+export type UpdateUserInput = z.infer<typeof UpdateUserBody>;
+export type CreateWorkspaceInputV1 = z.infer<typeof CreateWorkspaceBody>;
+export type AddMemberInput = z.infer<typeof AddMemberBody>;
+export type UpdateMemberInput = z.infer<typeof UpdateMemberBody>;
+export type CreateProjectInputV1 = z.infer<typeof CreateProjectBody>;
+export type UpdateProjectInput = z.infer<typeof UpdateProjectBody>;
+export type CreateDocumentInputV1 = z.infer<typeof CreateDocumentBody>;
+export type SaveContentInput = z.infer<typeof SaveContentBody>;
+
+/**
+ * Permission matrix. System ADMIN bypasses workspace checks for administration (listing/deleting
+ * workspaces) but still needs membership to edit documents.
+ */
+export const WORKSPACE_PERMISSIONS = {
+  'workspace.read': ['OWNER', 'ADMIN', 'EDITOR', 'VIEWER'],
+  'workspace.update': ['OWNER', 'ADMIN'],
+  'workspace.delete': ['OWNER'],
+  'members.manage': ['OWNER', 'ADMIN'],
+  'project.create': ['OWNER', 'ADMIN', 'EDITOR'],
+  'project.update': ['OWNER', 'ADMIN', 'EDITOR'],
+  'project.delete': ['OWNER', 'ADMIN'],
+  'document.create': ['OWNER', 'ADMIN', 'EDITOR'],
+  'document.read': ['OWNER', 'ADMIN', 'EDITOR', 'VIEWER'],
+  'document.write': ['OWNER', 'ADMIN', 'EDITOR'],
+  'document.delete': ['OWNER', 'ADMIN', 'EDITOR'],
+  'comment.create': ['OWNER', 'ADMIN', 'EDITOR', 'VIEWER'],
+  'comment.moderate': ['OWNER', 'ADMIN', 'EDITOR'],
+  'review.set': ['OWNER', 'ADMIN', 'EDITOR'],
+} as const satisfies Record<string, readonly WorkspaceRole[]>;
+export type Permission = keyof typeof WORKSPACE_PERMISSIONS;
+
+export function roleHas(role: WorkspaceRole | null | undefined, permission: Permission): boolean {
+  return !!role && (WORKSPACE_PERMISSIONS[permission] as readonly WorkspaceRole[]).includes(role);
+}
+
+/* ---------------- versions (checkpoints) */
+export const CreateVersionBody = z.object({ label: z.string().trim().min(1).max(120) }).strict();
+export interface VersionDto {
+  id: string;
+  documentId: string;
+  label: string | null;
+  automatic: boolean;
+  revision: number;
+  nodeCount: number;
+  createdById: string;
+  createdByName: string;
+  createdAt: string;
+}
+export interface VersionContentDto extends VersionDto {
+  content: DocumentJSON;
+}
+export type CreateVersionInput = z.infer<typeof CreateVersionBody>;
+
+/* ---------------- personal API tokens */
+export const CreateTokenBody = z
+  .object({ name: NameSchema, expiresInDays: z.number().int().min(1).max(3650).optional() })
+  .strict();
+export interface ApiTokenDto {
+  id: string;
+  name: string;
+  prefix: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+/** The full token is returned once at creation. */
+export interface CreatedTokenResponse {
+  token: ApiTokenDto;
+  secret: string;
+}
+export type CreateTokenInput = z.infer<typeof CreateTokenBody>;
+
+/* ---------------- review workflow on frames (stored in node metadata) */
+export const ReviewStateSchema = z.enum(['DRAFT', 'IN_REVIEW', 'APPROVED']);
+export type ReviewState = z.infer<typeof ReviewStateSchema>;
+export interface FrameReview {
+  state: ReviewState;
+  byId: string;
+  byName: string;
+  at: string;
+}
+export interface FrameLock {
+  userId: string;
+  name: string;
+  /** ISO expiry; locks are advisory in the UI and enforced on save until then. */
+  until: string;
+}
+
+/* ---------------- comments */
+export const CommentAnchorSchema = z
+  .object({
+    pageId: z.string().min(1),
+    nodeId: z.string().min(1).nullable().optional(),
+    x: z.number(),
+    y: z.number(),
+  })
+  .strict();
+export const CreateCommentBody = z
+  .object({
+    content: z.string().trim().min(1).max(5000),
+    parentId: z.string().uuid().nullable().optional(),
+    anchor: CommentAnchorSchema.optional(),
+  })
+  .strict();
+export const UpdateCommentBody = z
+  .object({
+    content: z.string().trim().min(1).max(5000).optional(),
+    resolved: z.boolean().optional(),
+  })
+  .strict();
+export type CommentAnchor = z.infer<typeof CommentAnchorSchema>;
+export type CreateCommentInputV1 = z.infer<typeof CreateCommentBody>;
+export type UpdateCommentInput = z.infer<typeof UpdateCommentBody>;
+export interface CommentDto {
+  id: string;
+  documentId: string;
+  parentId: string | null;
+  userId: string;
+  userName: string;
+  content: string;
+  anchor: CommentAnchor | null;
+  resolved: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface CommentThreadDto extends CommentDto {
+  replies: CommentDto[];
+}
+
+/* ---------------- presence (WebSocket /api/v1/presence) */
+export interface PresenceUser {
+  userId: string;
+  name: string;
+  color: string;
+  pageId: string | null;
+  cursor: { x: number; y: number } | null;
+  selection: string[];
+}
+export type PresenceClientMessage =
+  | { type: 'join'; documentId: string }
+  | {
+      type: 'awareness';
+      pageId: string | null;
+      cursor: { x: number; y: number } | null;
+      selection: string[];
+    };
+export type PresenceServerMessage =
+  | { type: 'presence'; users: PresenceUser[] }
+  | { type: 'awareness'; user: PresenceUser }
+  | { type: 'leave'; userId: string }
+  | { type: 'saved'; revision: number; userId: string; userName: string }
+  | { type: 'error'; message: string };

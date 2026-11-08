@@ -1,0 +1,301 @@
+// Sigma database schema (PostgreSQL).
+// Table and column names are mapped to snake_case so the SQL matches the spec.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "./generated"
+  runtime             = "nodejs"
+  moduleFormat        = "cjs"
+  generatedFileExtension = "ts"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum SystemRole {
+  ADMIN
+  MEMBER
+}
+
+enum DocumentRole {
+  OWNER
+  EDITOR
+  COMMENTER
+  VIEWER
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  systemRole   SystemRole @default(MEMBER) @map("system_role")
+  active       Boolean  @default(true)
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  sessions            Session[]
+  apiTokens           ApiToken[]
+
+  ownedWorkspaces     Workspace[]          @relation("WorkspaceOwner")
+  memberships         WorkspaceMember[]
+  createdProjects     Project[]            @relation("ProjectCreator")
+  createdDocuments    Document[]           @relation("DocumentCreator")
+  uploadedAssets      Asset[]              @relation("AssetUploader")
+  comments            Comment[]
+  documentPermissions DocumentPermission[]
+  createdVersions     DocumentVersion[]    @relation("VersionCreator")
+
+  @@map("users")
+}
+
+model ApiToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  name       String
+  tokenHash  String    @unique @map("token_hash")
+  prefix     String
+  lastUsedAt DateTime? @map("last_used_at")
+  expiresAt  DateTime? @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_tokens")
+}
+
+model Session {
+  id         String   @id @default(uuid()) @db.Uuid
+  tokenHash  String   @unique @map("token_hash")
+  userId     String   @map("user_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  expiresAt  DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Workspace {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  ownerId   String   @map("owner_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  owner    User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members  WorkspaceMember[]
+  projects Project[]
+  assets   Asset[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  role        WorkspaceRole
+  joinedAt    DateTime      @default(now()) @map("joined_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+model Project {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  name        String
+  description String?
+  createdById String   @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User       @relation("ProjectCreator", fields: [createdById], references: [id])
+  folders   Folder[]
+  documents Document[]
+
+  @@index([workspaceId])
+  @@map("projects")
+}
+
+model Folder {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  parentId  String?  @map("parent_id") @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent    Folder?    @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Folder[]   @relation("FolderTree")
+  documents Document[]
+
+  @@index([projectId])
+  @@map("folders")
+}
+
+model Document {
+  id              String    @id @default(uuid()) @db.Uuid
+  projectId       String    @map("project_id") @db.Uuid
+  folderId        String?   @map("folder_id") @db.Uuid
+  name            String
+  documentVersion Int       @default(1) @map("document_version")
+  thumbnailUrl    String?   @map("thumbnail_url")
+  thumbnail       String?
+  content         Json
+  revision        Int       @default(0)
+  nodeCount       Int       @default(1) @map("node_count")
+  createdById     String    @map("created_by_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  project     Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  folder      Folder?              @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  createdBy   User                 @relation("DocumentCreator", fields: [createdById], references: [id])
+  snapshots   DocumentSnapshot[]
+  updates     DocumentUpdate[]
+  comments    Comment[]
+  permissions DocumentPermission[]
+  shareTokens ShareToken[]
+  versions    DocumentVersion[]
+
+  @@index([projectId])
+  @@index([folderId])
+  @@map("documents")
+}
+
+model DocumentSnapshot {
+  id            String   @id @default(uuid()) @db.Uuid
+  documentId    String   @map("document_id") @db.Uuid
+  revision      BigInt
+  schemaVersion Int      @map("schema_version")
+  storageKey    String?  @map("storage_key")
+  content       Json?
+  contentHash   String   @map("content_hash")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  document Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versions DocumentVersion[]
+
+  @@index([documentId])
+  @@map("document_snapshots")
+}
+
+model DocumentUpdate {
+  id             String   @id @default(uuid()) @db.Uuid
+  documentId     String   @map("document_id") @db.Uuid
+  sequenceNumber BigInt   @map("sequence_number")
+  updateData     Bytes    @map("update_data")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, sequenceNumber])
+  @@map("document_updates")
+}
+
+model Asset {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  uploadedById String   @map("uploaded_by_id") @db.Uuid
+  filename     String
+  mimeType     String   @map("mime_type")
+  storageKey   String   @map("storage_key")
+  fileSize     BigInt   @map("file_size")
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  uploadedBy User      @relation("AssetUploader", fields: [uploadedById], references: [id])
+
+  @@index([workspaceId])
+  @@map("assets")
+}
+
+model Comment {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  parentId   String?  @map("parent_id") @db.Uuid
+  content    String
+  anchorData Json?    @map("anchor_data")
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  document Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id])
+  parent   Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentThread")
+
+  @@index([documentId, createdAt])
+  @@map("comments")
+}
+
+model DocumentPermission {
+  id         String       @id @default(uuid()) @db.Uuid
+  documentId String       @map("document_id") @db.Uuid
+  userId     String?      @map("user_id") @db.Uuid
+  role       DocumentRole
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("document_permissions")
+}
+
+model ShareToken {
+  id         String       @id @default(uuid()) @db.Uuid
+  documentId String       @map("document_id") @db.Uuid
+  token      String       @unique
+  role       DocumentRole
+  expiresAt  DateTime?    @map("expires_at")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("share_tokens")
+}
+
+model DocumentVersion {
+  id          String   @id @default(uuid()) @db.Uuid
+  documentId  String   @map("document_id") @db.Uuid
+  snapshotId  String   @map("snapshot_id") @db.Uuid
+  createdById String   @map("created_by_id") @db.Uuid
+  label       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  document  Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  snapshot  DocumentSnapshot @relation(fields: [snapshotId], references: [id])
+  createdBy User             @relation("VersionCreator", fields: [createdById], references: [id])
+
+  @@index([documentId, createdAt])
+  @@map("document_versions")
+}

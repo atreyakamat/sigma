@@ -1,0 +1,22 @@
+{
+  "name": "@sigma/benchmarks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "bench": "vitest run --config vitest.config.ts",
+    "bench:browser": "playwright test -c playwright.config.ts"
+  },
+  "dependencies": {
+    "@sigma/document": "workspace:*",
+    "@sigma/engine": "workspace:*",
+    "@sigma/history": "workspace:*",
+    "@sigma/shared": "workspace:*",
+    "@sigma/tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  }
+}

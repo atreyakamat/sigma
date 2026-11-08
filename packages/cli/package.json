@@ -1,0 +1,19 @@
+{
+  "name": "@sigma/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Command-line access to a SIGMA server: export frames, pull design tokens, create checkpoints.",
+  "bin": {
+    "sigma": "./bin/sigma.mjs"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint -c eslint.config.mjs bin",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "globals": "^17.14.0"
+  }
+}

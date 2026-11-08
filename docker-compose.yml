@@ -1,0 +1,82 @@
+# SIGMA self-hosted stack. First run:
+#   cp .env.docker.example .env.docker   (edit secrets; every variable has a dev default)
+#   docker compose --env-file .env.docker up -d --build
+#   docker compose logs api                           # shows the initial admin password unless BOOTSTRAP_ADMIN_PASSWORD is set
+# Then open http://localhost:${WEB_PORT:-3000}
+name: sigma-stack
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: sigma-web:local
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-3000}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: sigma-api:local
+    restart: unless-stopped
+    env_file:
+      - path: .env.docker
+        required: false
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sigma}:${POSTGRES_PASSWORD:-sigma}@postgres:5432/${POSTGRES_DB:-sigma}?schema=public
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
+      TRUST_PROXY: 'true'
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-string}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@sigma.local}
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-Administrator}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/api/v1/health >/dev/null || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sigma}
+      POSTGRES_USER: ${POSTGRES_USER:-sigma}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sigma}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-sigma} -d ${POSTGRES_DB:-sigma}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:

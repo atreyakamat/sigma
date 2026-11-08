@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "verbatimModuleSyntax": false,
+    "isolatedModules": true,
+    "noEmit": false,
+    "outDir": "dist",
+    "sourceMap": true,
+    "declaration": false,
+    "removeComments": true,
+    "incremental": false
+  },
+  "include": ["src/**/*.ts"]
+}
