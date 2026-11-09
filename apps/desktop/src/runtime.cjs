@@ -160,6 +160,14 @@ async function startRuntime(options) {
 
   const { default: EmbeddedPostgres } = await import('embedded-postgres');
   const pgPort = await freePort();
+  // The database's own output, kept so a startup failure can say why.
+  const pgOutput = [];
+  const explain = (step) => (e) => {
+    throw new Error(
+      `${step} failed: ${e instanceof Error ? e.message : (e ?? 'no error given')}\n${pgOutput.slice(-15).join('\n')}`,
+      { cause: e },
+    );
+  };
   const pg = new EmbeddedPostgres({
     databaseDir: pgDir,
     user: 'sigma',
@@ -172,12 +180,14 @@ async function startRuntime(options) {
   const firstRun = !fs.existsSync(path.join(pgDir, 'PG_VERSION'));
   if (firstRun) {
     log('Preparing the database for first use…');
-    await pg.initialise();
+    await pg.initialise().catch(explain('Preparing the database'));
   } else {
     const tookOver = await stopOrphan(pgDir);
     if (clearStaleLock(pgDir) || tookOver) log('Recovered from an unclean shutdown.');
   }
-  await withTimeout(pg.start(), 60_000, 'Starting the database');
+  await withTimeout(pg.start(), 60_000, 'Starting the database').catch(
+    explain('Starting the database'),
+  );
   if (firstRun) await pg.createDatabase('sigma');
   const databaseUrl = `postgresql://sigma:${encodeURIComponent(config.dbPassword)}@127.0.0.1:${pgPort}/sigma?schema=public`;
 
