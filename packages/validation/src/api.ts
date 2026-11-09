@@ -412,3 +412,158 @@ export interface SharedDocumentDto {
   role: ShareLinkRole;
   content: DocumentJSON;
 }
+
+/* ---------------- document operations (automation: MCP server, assistant, scripts) */
+const HexColor = z
+  .string()
+  .regex(
+    /^(none|#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}))$/,
+    'Use a hex colour like #2563eb, or "none"',
+  );
+const NodeFieldsShape = {
+  name: z.string().trim().min(1).max(200).optional(),
+  x: z.number().finite().optional(),
+  y: z.number().finite().optional(),
+  width: z.number().positive().max(100_000).optional(),
+  height: z.number().positive().max(100_000).optional(),
+  rotation: z.number().finite().optional(),
+  fill: HexColor.optional(),
+  stroke: HexColor.optional(),
+  strokeWidth: z.number().min(0).max(1000).optional(),
+  opacity: z.number().min(0).max(1).optional(),
+  visible: z.boolean().optional(),
+  cornerRadius: z.number().min(0).max(10_000).optional(),
+  text: z.string().max(20_000).optional(),
+  fontSize: z.number().positive().max(2000).optional(),
+  fontWeight: z.number().int().min(100).max(900).optional(),
+};
+export const DocumentOpSchema = z.discriminatedUnion('op', [
+  z
+    .object({
+      op: z.literal('add'),
+      type: z.enum([
+        'PAGE',
+        'FRAME',
+        'GROUP',
+        'RECTANGLE',
+        'ELLIPSE',
+        'LINE',
+        'POLYGON',
+        'STAR',
+        'TEXT',
+        'COMPONENT',
+      ]),
+      parent: z.string().min(1).max(100).optional(),
+      ref: z
+        .string()
+        .regex(/^[A-Za-z0-9_-]{1,40}$/)
+        .optional(),
+      index: z.number().int().min(0).optional(),
+      ...NodeFieldsShape,
+    })
+    .strict(),
+  z
+    .object({ op: z.literal('update'), id: z.string().min(1).max(100), ...NodeFieldsShape })
+    .strict(),
+  z
+    .object({
+      op: z.literal('move'),
+      id: z.string().min(1).max(100),
+      parent: z.string().min(1).max(100),
+      index: z.number().int().min(0).optional(),
+    })
+    .strict(),
+  z.object({ op: z.literal('delete'), id: z.string().min(1).max(100) }).strict(),
+  z.object({ op: z.literal('rename_document'), name: z.string().trim().min(1).max(200) }).strict(),
+]);
+export const DocumentOpsBody = z
+  .object({ ops: z.array(DocumentOpSchema).min(1).max(200) })
+  .strict();
+export type DocumentOpsInput = z.infer<typeof DocumentOpsBody>;
+export interface DocumentOpsResponse {
+  revision: number;
+  applied: number;
+  results: { ok: boolean; id?: string; error?: string }[];
+}
+
+/* ---------------- AI providers and the in-app assistant */
+export const AiProviderKindSchema = z.enum(['anthropic', 'openai', 'openai_compatible', 'demo']);
+export type AiProviderKind = z.infer<typeof AiProviderKindSchema>;
+export const CreateAiProviderBody = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    kind: AiProviderKindSchema,
+    /** Model id as the provider names it (ignored for `demo`). */
+    model: z.string().trim().min(1).max(200).default('demo'),
+    /** Required for `openai_compatible` (e.g. http://localhost:11434/v1); optional override otherwise. */
+    baseUrl: z.string().trim().url().max(500).nullish(),
+    apiKey: z.string().trim().min(1).max(500).nullish(),
+    enabled: z.boolean().default(true),
+    isDefault: z.boolean().default(false),
+  })
+  .strict()
+  .refine((v) => v.kind !== 'openai_compatible' || !!v.baseUrl, {
+    message: 'baseUrl is required for OpenAI-compatible providers',
+    path: ['baseUrl'],
+  });
+export type CreateAiProviderInput = z.infer<typeof CreateAiProviderBody>;
+export const UpdateAiProviderBody = z
+  .object({
+    name: z.string().trim().min(1).max(80).optional(),
+    model: z.string().trim().min(1).max(200).optional(),
+    baseUrl: z.string().trim().url().max(500).nullish(),
+    /** Omit to keep the stored key; null clears it. */
+    apiKey: z.string().trim().min(1).max(500).nullish(),
+    enabled: z.boolean().optional(),
+    isDefault: z.boolean().optional(),
+  })
+  .strict();
+export type UpdateAiProviderInput = z.infer<typeof UpdateAiProviderBody>;
+export interface AiProviderDto {
+  id: string;
+  name: string;
+  kind: AiProviderKind;
+  model: string;
+  baseUrl: string | null;
+  /** Whether a key is stored; the key itself is never returned. */
+  hasKey: boolean;
+  enabled: boolean;
+  isDefault: boolean;
+  createdAt: string;
+}
+/** What non-admin users see: enough to pick a provider. */
+export interface AiProviderSummaryDto {
+  id: string;
+  name: string;
+  kind: AiProviderKind;
+  model: string;
+  isDefault: boolean;
+}
+export const AiChatBody = z
+  .object({
+    providerId: z.string().uuid().optional(),
+    messages: z
+      .array(
+        z
+          .object({ role: z.enum(['user', 'assistant']), content: z.string().min(1).max(20_000) })
+          .strict(),
+      )
+      .min(1)
+      .max(40),
+  })
+  .strict();
+export type AiChatInput = z.infer<typeof AiChatBody>;
+export interface AiChatStep {
+  tool: string;
+  summary: string;
+  isError: boolean;
+}
+export interface AiChatResponse {
+  reply: string;
+  steps: AiChatStep[];
+  /** Number of document operations applied during this turn. */
+  applied: number;
+  revision: number | null;
+  provider: AiProviderSummaryDto;
+  stopReason: string;
+}

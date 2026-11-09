@@ -11,6 +11,7 @@ import { AdminUsersPage } from '../features/settings/AdminUsersPage';
 import { TokensPage } from '../features/settings/TokensPage';
 import { SecurityPage } from '../features/settings/SecurityPage';
 import { AuditPage } from '../features/settings/AuditPage';
+import { AiProvidersPage } from '../features/settings/AiProvidersPage';
 import { PreviewPage } from '../features/prototype/PreviewPage';
 import { WorkspacePage } from '../features/workspace/WorkspacePage';
 import { WorkspacesPage } from '../features/workspace/WorkspacesPage';
@@ -40,6 +41,7 @@ export function App() {
             <Route element={<ProtectedRoute admin />}>
               <Route path="/admin/users" element={<AdminUsersPage />} />
               <Route path="/admin/audit" element={<AuditPage />} />
+              <Route path="/admin/ai" element={<AiProvidersPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

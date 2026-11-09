@@ -10,27 +10,31 @@ Base path `/api/v1`, JSON only, cookie session `sigma_session` (httpOnly, SameSi
 
 All paths are under `/api/v1`. Authentication is a session cookie or `Authorization: Bearer sgm_…`.
 
-| Method   | Path                                                                                                     | Who                                |
-| -------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| GET      | `/health`, `/metrics` (Prometheus)                                                                       | public                             |
-| POST     | `/auth/login` → session, or `{ requiresTwoFactor: true }` + challenge cookie; `/auth/login/2fa`          | public, 20 attempts / minute / IP  |
-| POST     | `/auth/logout`, GET `/auth/me`, POST `/auth/change-password`                                             | signed in                          |
-| GET/POST | `/auth/tokens`; DELETE `/auth/tokens/:id` (personal API tokens, secret shown once)                       | signed in                          |
-| GET      | `/auth/sessions`; DELETE `/auth/sessions/:id`; POST `/auth/sessions/revoke-others`                       | signed in                          |
-| POST     | `/auth/2fa/setup` → secret + otpauth URL; `/auth/2fa/enable` → recovery codes; `/auth/2fa/disable`       | signed in                          |
-| GET/POST | `/users`; GET/PATCH/DELETE `/users/:id`; POST `/users/:id/reset-password`                                | system ADMIN                       |
-| GET      | `/audit?limit=&before=`                                                                                  | system ADMIN                       |
-| GET/POST | `/workspaces` (`?all=true` for system admins); GET/PATCH/DELETE `/workspaces/:id`                        | member / role                      |
-| GET/POST | `/workspaces/:id/members`; PATCH/DELETE `/workspaces/:id/members/:userId`                                | OWNER/ADMIN                        |
-| GET/POST | `/workspaces/:id/projects`; GET/PATCH/DELETE `/projects/:id`                                             | role                               |
-| GET/POST | `/projects/:id/documents`; GET/PATCH/DELETE `/documents/:id`; PUT `/documents/:id/content`               | role                               |
-| GET/POST | `/documents/:id/versions`; GET `/documents/:id/versions/:versionId`; POST `…/:versionId/restore`         | role                               |
-| GET      | `/documents/:id/export.svg`, `export.png?scale=&frame=`, `tokens.json`, `tokens.css`, `frames?approved=` | document.read (handoff)            |
-| GET/POST | `/documents/:id/comments`; PATCH/DELETE `/comments/:id`                                                  | comment.create / author / moderate |
-| GET/POST | `/workspaces/:id/assets` (multipart `file`); POST `/assets/:id/signed-url`; DELETE `/assets/:id`         | role                               |
-| GET      | `/assets/:id/content` (session, bearer, or `?exp=&sig=` signed URL)                                      | public with credentials/signature  |
-| GET      | `/workspaces/:id/library`; GET/DELETE `/library/:id`; POST `/documents/:id/library/publish`              | role                               |
-| WS       | `/presence` — presence, awareness, `saved`, realtime `sync` / `update` (see Realtime)                    | member (viewers read-only)         |
+| Method   | Path                                                                                                      | Who                                |
+| -------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| GET      | `/health`, `/metrics` (Prometheus)                                                                        | public                             |
+| POST     | `/auth/login` → session, or `{ requiresTwoFactor: true }` + challenge cookie; `/auth/login/2fa`           | public, 20 attempts / minute / IP  |
+| POST     | `/auth/logout`, GET `/auth/me`, POST `/auth/change-password`                                              | signed in                          |
+| GET/POST | `/auth/tokens`; DELETE `/auth/tokens/:id` (personal API tokens, secret shown once)                        | signed in                          |
+| GET      | `/auth/sessions`; DELETE `/auth/sessions/:id`; POST `/auth/sessions/revoke-others`                        | signed in                          |
+| POST     | `/auth/2fa/setup` → secret + otpauth URL; `/auth/2fa/enable` → recovery codes; `/auth/2fa/disable`        | signed in                          |
+| GET/POST | `/users`; GET/PATCH/DELETE `/users/:id`; POST `/users/:id/reset-password`                                 | system ADMIN                       |
+| GET      | `/audit?limit=&before=`                                                                                   | system ADMIN                       |
+| GET/POST | `/workspaces` (`?all=true` for system admins); GET/PATCH/DELETE `/workspaces/:id`                         | member / role                      |
+| GET/POST | `/workspaces/:id/members`; PATCH/DELETE `/workspaces/:id/members/:userId`                                 | OWNER/ADMIN                        |
+| GET/POST | `/workspaces/:id/projects`; GET/PATCH/DELETE `/projects/:id`                                              | role                               |
+| GET/POST | `/projects/:id/documents`; GET/PATCH/DELETE `/documents/:id`; PUT `/documents/:id/content`                | role                               |
+| GET/POST | `/documents/:id/versions`; GET `/documents/:id/versions/:versionId`; POST `…/:versionId/restore`          | role                               |
+| GET      | `/documents/:id/export.svg`, `export.png?scale=&frame=`, `tokens.json`, `tokens.css`, `frames?approved=`  | document.read (handoff)            |
+| GET/POST | `/documents/:id/comments`; PATCH/DELETE `/comments/:id`                                                   | comment.create / author / moderate |
+| GET/POST | `/workspaces/:id/assets` (multipart `file`); POST `/assets/:id/signed-url`; DELETE `/assets/:id`          | role                               |
+| GET      | `/assets/:id/content` (session, bearer, or `?exp=&sig=` signed URL)                                       | public with credentials/signature  |
+| GET      | `/workspaces/:id/library`; GET/DELETE `/library/:id`; POST `/documents/:id/library/publish`               | role                               |
+| GET/POST | `/documents/:id/outline` (GET, compact structure); `/documents/:id/ops` (POST, validated edit operations) | document.read / document.write     |
+| GET      | `/ai/providers` (enabled providers, no secrets)                                                           | signed in                          |
+| *        | `/admin/ai/providers` (GET, POST); `/admin/ai/providers/:id` (PATCH, DELETE); `…/:id/test` (POST)         | system ADMIN                       |
+| POST     | `/documents/:id/ai/chat` (assistant turn with tool use, 30 / minute / IP)                                 | document.read (edits need write)   |
+| WS       | `/presence` — presence, awareness, `saved`, realtime `sync` / `update` (see Realtime)                     | member (viewers read-only)         |
 
 Errors: 400 validation (`message` is a list), 401 not signed in, 403 forbidden (role or CSRF
 origin), 404 not found (also for resources in workspaces the caller is not a member of), 409
@@ -80,6 +84,30 @@ full Yjs state (base64) and current `revision`. Participants with `document.writ
 `documents.content` after a one-second debounce, broadcasting `saved` with the new revision. Any
 HTTP replacement of the content (restore, CLI, offline flush) rebuilds the room and pushes a new
 `sync`. Shared-state layout and conflict rules: `packages/collab` and ADR-0012.
+
+## Automation: operations, outline, assistant, MCP
+
+`POST /documents/:id/ops` takes `{ ops: [...] }` (1–200): `add` (`type`, optional `parent` id or
+`$ref`, `ref`, `index`, fields), `update` (`id`, fields), `move` (`id`, `parent`, `index`),
+`delete` (`id`), `rename_document` (`name`). Fields: `name`, `x`, `y`, `width`, `height`,
+`rotation`, `fill` / `stroke` (hex or `"none"`), `strokeWidth`, `opacity`, `visible`,
+`cornerRadius`, `text`, `fontSize`, `fontWeight`. The response lists one result per operation
+(`ok`, `id` or `error`), the number applied and the new `revision`; failing operations are skipped.
+Pending realtime edits are flushed first and the result goes through the normal save path, so
+frame locks, versions, thumbnails and realtime resync apply. `GET /documents/:id/outline` returns
+pages and nested layers (`id`, `type`, `name`, `x`, `y`, `w`, `h`, `text`, `fill`), capped at 400
+nodes with a `truncated` flag.
+
+`POST /documents/:id/ai/chat` (`{ messages: [{ role, content }], providerId? }`) runs one assistant
+turn on the server: the configured provider is called with two tools, `get_document_outline` and
+(for roles with `document.write`) `apply_document_ops`, in a loop of at most eight steps. The
+response carries `reply`, the `steps` taken, `applied`, `revision`, `provider` and `stopReason`.
+Provider kinds: `anthropic` (official SDK, Messages API), `openai`, `openai_compatible` (any Chat
+Completions endpoint with tool calling: Ollama, LM Studio, vLLM, OpenRouter, Groq…), and `demo`
+(rule-based, no model). Provider failures return 400/429/502 with an actionable message.
+
+The MCP server in `packages/mcp` wraps the same endpoints for Claude and other MCP clients; see
+`integrations/claude/README.md`.
 
 ## Share links and PDF
 

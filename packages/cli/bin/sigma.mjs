@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SIGMA command-line client. Needs SIGMA_URL (e.g. http://localhost:3000) and SIGMA_TOKEN (a personal
+// SIGMA command-line client. Needs SIGMA_URL (e.g. http://localhost:3387) and SIGMA_TOKEN (a personal
 // API token from Account → API tokens). Node 20+ (built-in fetch).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

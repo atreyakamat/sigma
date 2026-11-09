@@ -16,7 +16,7 @@ export async function truncateAll(): Promise<void> {
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: process.env['DATABASE_URL'] as string }),
   });
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE "users" RESTART IDENTITY CASCADE');
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE "users", "ai_providers" RESTART IDENTITY CASCADE');
   await prisma.$disconnect();
 }
 

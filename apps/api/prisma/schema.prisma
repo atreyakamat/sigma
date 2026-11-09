@@ -341,3 +341,20 @@ model DocumentVersion {
   @@index([documentId, createdAt])
   @@map("document_versions")
 }
+
+/// Instance-level AI provider configuration for the in-app assistant (managed by system admins).
+model AiProvider {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  kind      String
+  model     String
+  baseUrl   String?  @map("base_url")
+  /// AES-256-GCM encrypted with SESSION_SECRET; never returned by the API.
+  apiKey    String?  @map("api_key")
+  enabled   Boolean  @default(true)
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("ai_providers")
+}

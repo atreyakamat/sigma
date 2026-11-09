@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "sigma": {
+      "command": "node",
+      "args": ["packages/mcp/bin/sigma-mcp.mjs"],
+      "env": {
+        "SIGMA_URL": "http://localhost:3387",
+        "SIGMA_TOKEN": "sgm_replace_with_your_token"
+      }
+    }
+  }
+}

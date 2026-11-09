@@ -86,6 +86,9 @@ candidate commit.
   by cloning the public repository into an empty directory, `docker compose up --build` on port
   3100, and the full e2e suite (21 scenarios) against it. **This is the launch release.**
 
+- **v0.2.0** (2026-11-09): AI assistant with pluggable providers, MCP server and Claude skill,
+  document operations API, default port 3387, user-facing README.
+
 ## 6. Rollback
 
 Images are immutable per tag: `docker compose pull && docker compose up -d` with the previous tag

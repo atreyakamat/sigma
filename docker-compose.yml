@@ -2,7 +2,7 @@
 #   cp .env.docker.example .env.docker   (edit secrets; every variable has a dev default)
 #   docker compose --env-file .env.docker up -d --build
 #   docker compose logs api                           # shows the initial admin password unless BOOTSTRAP_ADMIN_PASSWORD is set
-# Then open http://localhost:${WEB_PORT:-3000}
+# Then open http://localhost:${WEB_PORT:-3387}
 #
 # Without building: set SIGMA_IMAGE_NAMESPACE (default ghcr.io/atreyakamat) and SIGMA_VERSION (e.g. 0.1.0)
 # in .env.docker, then `docker compose --env-file .env.docker pull && docker compose --env-file .env.docker up -d --no-build`.
@@ -21,7 +21,7 @@ services:
     image: ${SIGMA_IMAGE_NAMESPACE:-ghcr.io/atreyakamat}/sigma-web:${SIGMA_VERSION:-local}
     restart: unless-stopped
     ports:
-      - '${WEB_PORT:-3000}:80'
+      - '${WEB_PORT:-3387}:80'
     depends_on:
       api:
         condition: service_healthy
@@ -40,7 +40,7 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-sigma}:${POSTGRES_PASSWORD:-sigma}@postgres:5432/${POSTGRES_DB:-sigma}?schema=public
       REDIS_URL: redis://redis:6379
-      CORS_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
+      CORS_ORIGIN: ${PUBLIC_URL:-http://localhost:3387}
       TRUST_PROXY: 'true'
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-string}
@@ -52,6 +52,9 @@ services:
       COLLAB_PERSIST_DEBOUNCE_MS: ${COLLAB_PERSIST_DEBOUNCE_MS:-1000}
     volumes:
       - api-data:/data
+    # Lets AI providers point at a model server on the host (e.g. Ollama at http://host.docker.internal:11434/v1).
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       postgres:
         condition: service_healthy

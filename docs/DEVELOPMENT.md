@@ -203,7 +203,7 @@ Node types are switched on in several places; add the type to each, in this orde
   `localhost:5432` (creates `sigma_test` and migrates it). Unit tests: `pnpm --filter @sigma/api test`.
 - Web unit tests: `pnpm --filter @sigma/web test` (Vitest + Testing Library, jsdom).
 - End-to-end: `pnpm test:e2e` runs Playwright against `E2E_BASE_URL` (default the Docker stack on
-  http://localhost:3000). The admin password is read from `E2E_ADMIN_PASSWORD`, otherwise from
+  http://localhost:3387). The admin password is read from `E2E_ADMIN_PASSWORD`, otherwise from
   `docker compose logs api`; the suite sets it to a known value on first run.
 - The API is bundled for production with Vite (`apps/api/vite.config.mts`, output `dist/main.cjs`)
   because the Nest `tsc` build cannot consume the TypeScript-source workspace packages.
@@ -247,3 +247,16 @@ Node types are switched on in several places; add the type to each, in this orde
   injects `zlib.deflateSync` and rasterises frames with `@napi-rs/canvas`.
 - Releases: tag `vX.Y.Z` after `pnpm release:bump X.Y.Z`; `.github/workflows/release.yml` publishes
   images to GHCR and a GitHub release. Procedure and gates: `docs/LAUNCH.md`.
+
+## AI and automation (v0.2.0)
+
+- `packages/document/src/ops.ts` — `applyDocumentOps` / `outlineDocument`: the one editing surface
+  for automation. Add a field there, in `DocumentOpSchema` (`@sigma/validation`), in the tool
+  schema in `apps/api/src/ai/ai.service.ts` and in `packages/mcp/src/server.mjs`.
+- `apps/api/src/ai/agent.ts` — provider adapters behind one `runAgent(config, input)` call:
+  Anthropic through `@anthropic-ai/sdk` (manual tool loop, full content replayed, refusal and
+  typed errors handled), OpenAI-compatible through `fetch`, and the rule-based demo. Integration
+  tests script both wire formats with an in-process HTTP server (`test/ai.int.spec.ts`).
+- `packages/mcp` — plain ESM (no build step) on `@modelcontextprotocol/sdk`; tests use the SDK's
+  in-memory transport and a fake `fetch`.
+- Web: `features/editor/components/AssistantPanel.tsx`, `features/settings/AiProvidersPage.tsx`.

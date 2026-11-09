@@ -16,6 +16,7 @@ import { PresenceLayer } from '../collaboration/PresenceLayer';
 import { usePresence } from '../collaboration/usePresence';
 import { CommentsLayer, CommentsPanel } from './comments/CommentsLayer';
 import { ConnectionsLayer } from '../prototype/ConnectionsLayer';
+import { AssistantPanel } from './components/AssistantPanel';
 import { VersionsPanel } from './components/VersionsPanel';
 import { errorText } from '../../lib/queries';
 import { HintToast, OnboardingChecklist, useOnboardingBindings } from '../onboarding/Onboarding';
@@ -168,6 +169,13 @@ export function EditorPage() {
     };
   }, [routeDocumentId, shareToken, user?.id]);
 
+  // The assistant edited the file on the server while realtime was not active: pull the result.
+  useEffect(() => {
+    const onReload = () => void reloadRef.current?.();
+    window.addEventListener('sigma:reload-document', onReload);
+    return () => window.removeEventListener('sigma:reload-document', onReload);
+  }, []);
+
   // Share-link viewers have no socket: poll for new revisions and reload quietly.
   useEffect(() => {
     if (!ctx?.shared || !shareToken) return;
@@ -294,6 +302,7 @@ export function EditorPage() {
     };
   }, [ctx, documentId, setSaveStatus]);
 
+  const reloadRef = useRef<(() => Promise<void>) | null>(null);
   const reloadFromServer = async (announce?: string) => {
     if (!ctx || !documentId) return;
     const doc = await documentRepository.get(documentId);
@@ -305,6 +314,8 @@ export function EditorPage() {
     setConflict(null);
     if (announce) toast.info(announce);
   };
+
+  reloadRef.current = () => reloadFromServer();
 
   if (loadError) {
     return (
@@ -501,7 +512,9 @@ function Overlays({ onRestored }: { onRestored: () => void }) {
       )}
       {paletteOpen && <CommandPalette commands={commands} onClose={() => setPaletteOpen(false)} />}
       {shortcutsOpen && <ShortcutsPanel onClose={() => setShortcutsOpen(false)} />}
-      <div className="pointer-events-none fixed bottom-9 left-3 z-30 flex flex-col gap-2">
+      <div
+        className={`pointer-events-none fixed bottom-9 left-3 z-30 flex-col gap-2 ${useEditorUi((st) => st.leftTab) === 'assistant' ? 'hidden' : 'flex'}`}
+      >
         <HintToast />
         {!readOnly && <OnboardingChecklist />}
       </div>
@@ -514,17 +527,19 @@ function LeftSidebar() {
   const shared = useEditorContext().shared ?? false;
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-ink-700 px-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-0.5 gap-y-0.5 border-b border-ink-700 px-1.5 py-1">
         {(shared
           ? (['layers', 'pages'] as const)
-          : (['layers', 'pages', 'components', 'comments', 'history'] as const)
+          : (['layers', 'pages', 'components', 'comments', 'history', 'assistant'] as const)
         ).map((tab) => (
           <button
             key={tab}
             onClick={() => setLeftTab(tab)}
-            className={`rounded px-2 py-1 text-[11px] font-medium capitalize ${leftTab === tab ? 'bg-ink-700 text-ink-100' : 'text-ink-400 hover:text-ink-200'}`}
+            title={tab === 'assistant' ? 'AI assistant' : undefined}
+            data-testid={`left-tab-${tab}`}
+            className={`rounded px-1.5 py-1 text-[11px] font-medium capitalize ${leftTab === tab ? 'bg-ink-700 text-ink-100' : 'text-ink-400 hover:text-ink-200'}`}
           >
-            {tab}
+            {tab === 'assistant' ? 'AI' : tab}
           </button>
         ))}
       </div>
@@ -534,6 +549,7 @@ function LeftSidebar() {
         {leftTab === 'history' && <HistoryPanel />}
         {leftTab === 'comments' && <CommentsPanel />}
         {leftTab === 'components' && <ComponentsPanel />}
+        {leftTab === 'assistant' && <AssistantPanel />}
       </div>
     </div>
   );

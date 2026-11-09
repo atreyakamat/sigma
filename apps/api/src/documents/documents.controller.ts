@@ -17,7 +17,14 @@ import type {
   SaveContentInput,
   SaveContentResponse,
 } from '@sigma/validation';
-import { CreateDocumentBody, SaveContentBody, UpdateDocumentBody } from '@sigma/validation';
+import {
+  CreateDocumentBody,
+  DocumentOpsBody,
+  SaveContentBody,
+  UpdateDocumentBody,
+} from '@sigma/validation';
+import type { DocumentOpsInput, DocumentOpsResponse } from '@sigma/validation';
+import type { DocumentOp, DocumentOutline } from '@sigma/document';
 import type { User } from '../../prisma/generated/client';
 import { CurrentUser } from '../common/auth.decorators';
 import { zod } from '../common/zod.pipe';
@@ -59,6 +66,19 @@ export class DocumentsController {
     @Body(zod(SaveContentBody)) body: SaveContentInput,
   ): Promise<SaveContentResponse> {
     return this.documents.saveContent(user, id, body);
+  }
+  @Get('documents/:id/outline') outline(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<DocumentOutline> {
+    return this.documents.outline(user, id);
+  }
+  @Post('documents/:id/ops') @HttpCode(200) ops(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(zod(DocumentOpsBody)) body: DocumentOpsInput,
+  ): Promise<DocumentOpsResponse> {
+    return this.documents.applyOps(user, id, body.ops as DocumentOp[]);
   }
   @Delete('documents/:id') @HttpCode(204) remove(
     @CurrentUser() user: User,

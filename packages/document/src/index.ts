@@ -8,3 +8,4 @@ export * from './diff';
 export * from './shape-path';
 export * from './components';
 export * from './layout';
+export * from './ops';

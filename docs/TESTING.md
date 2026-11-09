@@ -35,7 +35,7 @@ the database first and starts a Nest application on a random port.
 
 ## End-to-end tests
 
-Three serial Playwright suites run against the Docker stack on `http://localhost:3000`
+Three serial Playwright suites run against the Docker stack on `http://localhost:3387`
 (`E2E_BASE_URL` to override; the admin password is read from `docker compose logs api`, from
 `E2E_ADMIN_PASSWORD`, or is the one a previous run set):
 
@@ -45,7 +45,7 @@ Three serial Playwright suites run against the Docker stack on `http://localhost
 2. `features.spec.ts` — onboarding checklist and palette, history panel and versions with diff and
    restore, comments, frame review states and server-enforced locks against a second user, live
    presence and cross-editor refresh, API tokens used for server-side rendering and tokens.
-3. `platform.spec.ts` — realtime co-editing between two browsers without reloads, gradient editor,
+3. `platform.spec.ts` — the AI assistant with the demo provider and the operations API, realtime co-editing between two browsers without reloads, gradient editor,
    prototype interaction and preview player, image upload stored as an asset with a signed URL,
    two-factor enrolment / 2FA sign-in / session revocation / disabling, audit log, language switch
    to Hindi, tablet layout.

@@ -6,6 +6,7 @@ import {
   LogOut,
   Shield,
   ShieldCheck,
+  Sparkles,
   Terminal,
 } from 'lucide-react';
 import { LOCALES, useI18n, useT } from '../lib/i18n';
@@ -89,12 +90,20 @@ export function AppHeader({
                 <ShieldCheck size={13} /> {t('nav.security')}
               </button>
               {user?.systemRole === 'ADMIN' && (
-                <button
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-ink-700"
-                  onClick={() => void navigate('/admin/audit')}
-                >
-                  <ListChecks size={13} /> {t('nav.audit')}
-                </button>
+                <>
+                  <button
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-ink-700"
+                    onClick={() => void navigate('/admin/audit')}
+                  >
+                    <ListChecks size={13} /> {t('nav.audit')}
+                  </button>
+                  <button
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-ink-700"
+                    onClick={() => void navigate('/admin/ai')}
+                  >
+                    <Sparkles size={13} /> {t('nav.ai')}
+                  </button>
+                </>
               )}
               <button
                 className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-ink-700"

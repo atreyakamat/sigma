@@ -22,6 +22,13 @@
   digits does not help).
 - Share links: 24-byte random tokens granting read access to one document, optional expiry,
   revocable, never usable for writes; creation and revocation are audited.
+- AI providers: only system administrators configure them; API keys are stored AES-256-GCM
+  encrypted and never returned; members see provider names and models only. The assistant acts
+  with the chatting user's role (viewers get the read tool only), every tool input is validated
+  against the operations schema, each turn is audited (`ai.chat`), and the endpoint is throttled.
+  Design content is sent to the provider the administrator chose; use a local OpenAI-compatible
+  endpoint to keep it on your network.
+- MCP server: authenticates with a personal API token and can do exactly what that user can.
 - Brute-force limits: login throttled per IP (`LOGIN_RATE_LIMIT`, default 20/min).
 - CSRF: state-changing requests require a matching `Origin`/`Referer`; bearer tokens are exempt
   because browsers never attach them automatically.
@@ -51,6 +58,10 @@ The pre-launch review with per-control results is in `security-review-2026-11.md
 - Password policy is length-based only; no breached-password check.
 - Share links cannot be scoped to a frame or protected with a password.
 - One API instance per deployment for realtime (no cross-instance relay).
+- Provider base URLs are admin-configured and requested from the API container; do not grant
+  system-admin rights to people who should not reach internal network addresses through it.
+- Layer names and text in a file are passed to the model as data; a file crafted to manipulate
+  the assistant can at most cause edits to that same file by a user who already has write access.
 
 ## Operations
 

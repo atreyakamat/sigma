@@ -264,6 +264,63 @@ test.describe.serial('platform: realtime, prototyping, assets, security', () => 
     await page.keyboard.press('Escape');
   });
 
+  test('AI assistant: admin adds the demo provider, the assistant edits the file, ops API works with a token', async ({
+    page,
+  }) => {
+    await asAdmin(page);
+    await page.goto('/admin/ai');
+    if ((await page.getByTestId('ai-provider-row').count()) === 0) {
+      await page.getByTestId('add-ai-provider').click();
+      await page.getByLabel('Provider type').selectOption('demo');
+      await page.getByTestId('save-ai-provider').click();
+    }
+    await expect(page.getByTestId('ai-provider-row').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Test' }).first().click();
+    await expect(page.getByTestId('ai-test-result').first()).toContainText('works');
+
+    await page.goto(fileUrl);
+    await page.getByTestId('left-tab-assistant').click();
+    await expect(page.getByTestId('assistant-panel')).toBeVisible();
+    await page
+      .getByTestId('assistant-input')
+      .fill('add a pink rectangle named Promo banner 300x90');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('assistant-assistant').last()).toContainText(
+      'Added Promo banner',
+      { timeout: 15_000 },
+    );
+    await page.getByTestId('left-tab-layers').click();
+    await expect(page.locator('aside').first().getByText('Promo banner')).toBeVisible({
+      timeout: 10_000,
+    });
+
+    // The same editing surface over HTTP, as the MCP server uses it.
+    const res = await page.request.post(`${origin}/api/v1/documents/${documentId}/ops`, {
+      data: {
+        ops: [
+          {
+            op: 'add',
+            type: 'TEXT',
+            name: 'Scripted label',
+            text: 'Made by a script',
+            x: 40,
+            y: 700,
+          },
+        ],
+      },
+      headers: { Origin: origin },
+    });
+    expect(res.ok()).toBeTruthy();
+    expect((await res.json()).applied).toBe(1);
+    await expect(page.locator('aside').first().getByText('Scripted label')).toBeVisible({
+      timeout: 10_000,
+    });
+    const outline = await (
+      await page.request.get(`${origin}/api/v1/documents/${documentId}/outline`)
+    ).json();
+    expect(JSON.stringify(outline)).toContain('Promo banner');
+  });
+
   test('security: two-factor enrolment, 2FA sign-in, session list and disabling', async ({
     browser,
   }) => {

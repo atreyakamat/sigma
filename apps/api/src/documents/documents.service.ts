@@ -17,6 +17,9 @@ import { PermissionsService } from '../permissions/permissions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VersionsService } from '../versions/versions.service';
 import { PresenceGateway } from '../collaboration/presence.gateway';
+import { applyDocumentOps, outlineDocument, parseDocumentJSON } from '@sigma/document';
+import type { DocumentOp, DocumentOutline } from '@sigma/document';
+import type { DocumentOpsResponse } from '@sigma/validation';
 import { CollabRoomsService } from '../collaboration/collab-rooms.service';
 import { ExportsService } from '../exports/exports.service';
 import { SceneGraph, projectInstances } from '@sigma/document';
@@ -127,6 +130,49 @@ export class DocumentsService {
       data: { ...input, content: content as object },
     });
     return toSummary(d, workspaceId);
+  }
+
+  /** Compact structure of a document for automation (MCP server, assistant). */
+  async outline(user: User, id: string): Promise<DocumentOutline> {
+    const doc = await this.get(user, id);
+    return outlineDocument(doc.content);
+  }
+
+  /**
+   * Applies high-level edit operations (see `applyDocumentOps`). Pending realtime edits are flushed
+   * first so nothing typed in the last second is lost; the result goes through the normal save
+   * path, so locks, versions, thumbnails and realtime resync all apply.
+   */
+  async applyOps(user: User, id: string, ops: readonly DocumentOp[]): Promise<DocumentOpsResponse> {
+    const { workspaceId } = await this.perms.workspaceOfDocument(id);
+    await this.perms.assert(user, workspaceId, 'document.write');
+    for (let attempt = 0; ; attempt++) {
+      await this.rooms.flush(id);
+      const stored = await this.prisma.document.findFirst({
+        where: { id, deletedAt: null },
+        select: { content: true, revision: true },
+      });
+      if (!stored) throw new NotFoundException('Document not found');
+      const applied_ = applyDocumentOps(stored.content as DocumentJSON, ops);
+      // Belt and braces: never store content the editor's strict parser would refuse to open.
+      const content = parseDocumentJSON(applied_.content);
+      const results = applied_.results;
+      const applied = results.filter((r) => r.ok).length;
+      if (applied === 0) return { revision: stored.revision, applied, results };
+      try {
+        const saved = await this.saveContent(user, id, { content, baseRevision: stored.revision });
+        return { revision: saved.revision, applied, results };
+      } catch (e) {
+        // Someone saved in between: retry once on the fresh content.
+        if (
+          e instanceof ConflictException &&
+          attempt === 0 &&
+          !(e.getResponse() as { lockedBy?: unknown }).lockedBy
+        )
+          continue;
+        throw e;
+      }
+    }
   }
 
   /** Optimistic concurrency: the client must send the revision it loaded. */

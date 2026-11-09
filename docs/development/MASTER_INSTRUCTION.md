@@ -7,19 +7,20 @@ original master instruction. Changes from v1 are summarised at the end.
 
 ## 0. Current state (update this section at every milestone)
 
-| Item                                          | State                                                                                                                              |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Milestone 0 Foundation                        | Done                                                                                                                               |
-| Milestone 1 Engine foundation                 | Done                                                                                                                               |
-| Milestone 2 Editing                           | Done (local-first persistence included)                                                                                            |
-| Milestone 3 Persistence (accounts, API, RBAC) | Done 2026-11-08 (self-hosted, admin-managed users, Docker stack)                                                                   |
-| Milestone 4 Advanced graphics                 | Done 2026-11-08 (pen/pencil, vector editing, booleans, SVG import, gradient UI; PDF export deferred)                               |
-| Milestone 5 Design systems                    | Done 2026-11-08 (components, variants, overrides, auto layout, constraints, libraries)                                             |
-| Milestone 6 Collaboration                     | Done 2026-11-08 (Yjs rooms over the presence socket, presence, locks, versions; ADR-0012)                                          |
-| Milestone 7 Prototyping                       | Done 2026-11-08 (interactions, transitions, connections overlay, preview player)                                                   |
-| Milestone 8 Production readiness              | In progress: 2FA, sessions, audit log, metrics, HTTPS profile, backups done; PDF export, share links, multi-instance realtime open |
-| Quality gates                                 | `pnpm verify` (typecheck, lint, unit tests, build) · `pnpm test:e2e` · `pnpm --filter @sigma/benchmarks bench`                     |
-| Known limits                                  | see `docs/EDITOR_ENGINE.md` → Known limitations, `docs/engine/benchmarks.md`                                                       |
+| Item                                          | State                                                                                                                                              |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Milestone 0 Foundation                        | Done                                                                                                                                               |
+| Milestone 1 Engine foundation                 | Done                                                                                                                                               |
+| Milestone 2 Editing                           | Done (local-first persistence included)                                                                                                            |
+| Milestone 3 Persistence (accounts, API, RBAC) | Done 2026-11-08 (self-hosted, admin-managed users, Docker stack)                                                                                   |
+| Milestone 4 Advanced graphics                 | Done 2026-11-08 (pen/pencil, vector editing, booleans, SVG import, gradient UI; PDF export deferred)                                               |
+| Milestone 5 Design systems                    | Done 2026-11-08 (components, variants, overrides, auto layout, constraints, libraries)                                                             |
+| Milestone 6 Collaboration                     | Done 2026-11-08 (Yjs rooms over the presence socket, presence, locks, versions; ADR-0012)                                                          |
+| Milestone 7 Prototyping                       | Done 2026-11-08 (interactions, transitions, connections overlay, preview player)                                                                   |
+| Milestone 8 Production readiness              | In progress: 2FA, sessions, audit log, metrics, HTTPS profile, backups done; PDF export, share links, multi-instance realtime open                 |
+| Milestone 9 AI and automation                 | Done 2026-11-09 (v0.2.0): in-editor assistant, providers (Anthropic, OpenAI, OpenAI-compatible, demo), MCP server + Claude skill, document ops API |
+| Quality gates                                 | `pnpm verify` (typecheck, lint, unit tests, build) · `pnpm test:e2e` · `pnpm --filter @sigma/benchmarks bench`                                     |
+| Known limits                                  | see `docs/EDITOR_ENGINE.md` → Known limitations, `docs/engine/benchmarks.md`                                                                       |
 
 Before any work: read `README.md`, `docs/ARCHITECTURE.md`, the relevant ADRs in `docs/decisions/`,
 and `CHANGELOG.md`. Then run `pnpm verify`. If it is red, fix that first.

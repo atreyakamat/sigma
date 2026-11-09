@@ -20,7 +20,7 @@ function passwordFromDockerLogs(): string | null {
 
 /** Finds a working admin password (env, docker logs, or the one a previous run set) and exposes it. */
 export default async function globalSetup(): Promise<void> {
-  const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
+  const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3387';
   const candidates = [
     process.env.E2E_ADMIN_PASSWORD,
     ADMIN_FINAL_PASSWORD,

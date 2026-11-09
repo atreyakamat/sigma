@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { PresenceUser } from '@sigma/validation';
 
-export type LeftTab = 'layers' | 'pages' | 'history' | 'comments' | 'components';
+export type LeftTab = 'layers' | 'pages' | 'history' | 'comments' | 'components' | 'assistant';
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'offline';
 
 interface EditorUiState {

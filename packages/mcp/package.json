@@ -1,0 +1,26 @@
+{
+  "name": "@sigma/mcp",
+  "version": "0.2.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "description": "Model Context Protocol server for SIGMA: lets Claude and other MCP clients read and edit designs",
+  "bin": {
+    "sigma-mcp": "./bin/sigma-mcp.mjs"
+  },
+  "main": "./src/server.mjs",
+  "exports": {
+    ".": "./src/server.mjs"
+  },
+  "scripts": {
+    "lint": "eslint src bin",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "node --check src/server.mjs && node --check bin/sigma-mcp.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2"
+  },
+  "devDependencies": {
+    "globals": "^17.14.0"
+  }
+}

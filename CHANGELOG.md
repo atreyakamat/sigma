@@ -8,6 +8,37 @@ All notable changes to this project are documented here. The format follows
 
 Nothing yet.
 
+## [0.2.0] — 2026-11-09
+
+#### Added
+
+- **AI assistant in the editor** (left sidebar → AI): chat in plain language and the assistant
+  reads and edits the open file through server-side tools. Edits appear live for everyone, are
+  saved as normal revisions and respect roles (viewers get a read-only assistant).
+- **Pluggable AI providers** (Admin → AI providers): Anthropic (Claude, official SDK), OpenAI, any
+  OpenAI-compatible endpoint with tool calling (Ollama, LM Studio, vLLM, OpenRouter, Groq, …), and
+  a built-in rule-based demo provider that needs no account. Keys are stored encrypted; a Test
+  button checks each configuration end to end.
+- **MCP server** (`packages/mcp`, `sigma-mcp`): 15 tools so Claude Code, Claude Desktop and other
+  MCP clients can list and create files, read outlines, apply edit operations, render PNG/SVG,
+  extract tokens, save versions and create share links. Ships with a `sigma-design` Claude skill
+  and an `.mcp.json.example` (`integrations/claude/`).
+- **Document operations API**: `POST /documents/:id/ops` (validated add / update / move / delete /
+  rename with per-operation results) and `GET /documents/:id/outline`; the shared editing surface
+  of the assistant, the MCP server and scripts (`applyDocumentOps`, `outlineDocument` in
+  `@sigma/document`).
+- User-facing README with screenshots, a five-minute quick start, feature tour and guides.
+- Migration `0006_ai` (`ai_providers`).
+
+#### Changed
+
+- The UI is served on port **3387** by default (`WEB_PORT`, `PUBLIC_URL`).
+
+#### Tests
+
+- API integration 47 (ops, providers, assistant against mock Anthropic and OpenAI-style servers),
+  document 25, MCP 4, e2e 22 scenarios.
+
 ## [0.1.2] — 2026-11-09
 
 #### Fixed

@@ -1,7 +1,7 @@
 {
   "name": "sigma",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.2.0",
   "license": "MIT",
   "description": "Sigma: a browser-based collaborative design platform with an independent editor engine.",
   "packageManager": "pnpm@12.18.0",
@@ -18,7 +18,9 @@
     "format:check": "prettier --check .",
     "test:e2e": "playwright test",
     "verify": "turbo run typecheck lint test build",
-    "release:bump": "node scripts/bump-version.mjs"
+    "release:bump": "node scripts/bump-version.mjs",
+    "screenshots": "playwright test --config tests/screenshots/playwright.config.ts",
+    "mcp": "node packages/mcp/bin/sigma-mcp.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

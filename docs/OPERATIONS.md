@@ -9,7 +9,7 @@ proxying `/api`), `api`, `postgres` and `redis`. Uploaded assets live in the `ap
 
 ## Ports and public URL
 
-`WEB_PORT` chooses the published port (default 3000). `PUBLIC_URL` must be the address users type
+`WEB_PORT` chooses the published port (default 3387). `PUBLIC_URL` must be the address users type
 into the browser (scheme, host and port) because it is the CORS allow-list entry and the base of
 share-link URLs; requests arriving at the stack's own host and port are always accepted as
 same-origin, so a mismatch only affects links and cross-origin API clients.
