@@ -2,10 +2,17 @@
 
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
-[Semantic Versioning](https://semver.org/). Nothing has been released yet; every workspace
-package is at `0.1.0`.
+[Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+Nothing yet.
+
+## [0.1.0] — 2026-11-09
+
+First release: the self-hosted stack described in `docs/LAUNCH.md`. Licence: MIT. Images are
+published to Docker Hub as `<namespace>/sigma-web` and `<namespace>/sigma-api`. The milestone
+sections below list everything included.
 
 ### Milestone 0 — Foundation
 

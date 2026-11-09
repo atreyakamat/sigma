@@ -7,6 +7,13 @@ proxying `/api`), `api`, `postgres` and `redis`. Uploaded assets live in the `ap
 (`DATA_DIR=/data`), or in an S3-compatible bucket when `S3_BUCKET`, `S3_ENDPOINT`,
 `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` are set.
 
+## Installing from published images
+
+Releases publish `<namespace>/sigma-web:<version>` and `<namespace>/sigma-api:<version>` to Docker
+Hub. Set `SIGMA_IMAGE_NAMESPACE=<namespace>` and `SIGMA_VERSION=<version>` in `.env.docker`, then
+`docker compose --env-file .env.docker pull && docker compose --env-file .env.docker up -d --no-build`.
+Leave them unset to build from source.
+
 ## HTTPS
 
 Set in `.env.docker`:
@@ -46,7 +53,8 @@ host. Set `COMPOSE_ENV_FILE=.env.docker` if your compose project needs the env f
 
 ## Upgrades
 
-`docker compose --env-file .env.docker up -d --build` rebuilds the images; the API runs
+Change `SIGMA_VERSION` and `docker compose pull && docker compose up -d --no-build` (published
+images), or `docker compose --env-file .env.docker up -d --build` to rebuild from source; the API runs
 `prisma migrate deploy` on start, so migrations apply automatically. Take a backup first.
 
 ## Realtime notes

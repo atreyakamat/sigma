@@ -1,6 +1,7 @@
 {
   "name": "@sigma/cli",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "description": "Command-line access to a SIGMA server: export frames, pull design tokens, create checkpoints.",

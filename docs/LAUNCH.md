@@ -54,28 +54,30 @@ candidate commit.
 | 13  | Release workflow builds and publishes images from a tag                             | `.github/workflows/release.yml` dry run on a `v0.1.0-rc.1` tag                | pending first push         |
 | 14  | Repository pushed to GitHub with CI green on `main`                                 | `git push`, Actions                                                           | pending (push is manual)   |
 
-## 4. Decisions that need an owner's answer before launch
+## 4. Decisions (recorded 2026-11-09)
 
-| ID  | Decision                                                          | Options                                                 | Default if unanswered |
-| --- | ----------------------------------------------------------------- | ------------------------------------------------------- | --------------------- |
-| A   | Open-source licence                                               | MIT / Apache-2.0 / AGPL-3.0 / proprietary               | none; blocks gate 12  |
-| B   | Product name and domain (affects window titles, Caddy host, docs) | keep "SIGMA" / rename                                   | keep "SIGMA"          |
-| C   | Where images are published                                        | GitHub Container Registry (ghcr.io) / Docker Hub / none | ghcr.io               |
-| D   | Support channel for self-hosters                                  | GitHub Issues / email / none                            | GitHub Issues         |
-| E   | Default upload storage in the reference compose file              | local volume (current) / MinIO service / external S3    | local volume          |
-| F   | Minimum password length                                           | 10 (current) / 12 / 14                                  | 10                    |
+| ID  | Decision                | Answer                                                                                                                                                     |
+| --- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A   | Licence                 | **MIT** (`LICENSE`, `license` field in every package). Permissive; all dependencies compatible. Can be changed before the first public release, not after. |
+| B   | Product name and domain | **SIGMA** (owner's decision). Domain is per installation (`PUBLIC_HOST`).                                                                                  |
+| C   | Image registry          | **Docker Hub** (owner's decision): `<namespace>/sigma-web`, `<namespace>/sigma-api`; compose reads `SIGMA_IMAGE_NAMESPACE` / `SIGMA_VERSION`.              |
+| D   | Support channel         | **GitHub Issues** of the repository; security reports privately to the maintainers.                                                                        |
+| E   | Default upload storage  | **Local volume** (`api-data`); S3-compatible storage via `S3_*` variables.                                                                                 |
+| F   | Minimum password length | **10** characters plus the common-password denylist.                                                                                                       |
 
 ## 5. Release procedure
 
 1. Confirm `main` is green in CI and the working tree is clean.
-2. Update `CHANGELOG.md`: move "Unreleased" into a dated `## [0.1.0]` section.
-3. Bump versions: `pnpm release:bump 0.1.0` (sets every workspace `package.json`).
-4. Commit `chore(release): v0.1.0`, tag `v0.1.0`, push the tag. The release workflow builds the
-   images, pushes them to the registry with the tag and `latest`, and attaches
-   `docker-compose.yml` and `.env.docker.example` to the GitHub release.
-5. Smoke-test the published images on a clean host: install, sign in, create a file, draw, invite a
-   second user, verify realtime, export PNG/SVG/PDF, back up.
-6. Announce through the channel chosen in Decision D.
+2. Update `CHANGELOG.md`: move "Unreleased" into a dated `## [x.y.z]` section.
+3. Bump versions: `pnpm release:bump x.y.z` (sets every workspace `package.json`).
+4. Commit `chore(release): vx.y.z`, tag `vx.y.z`, push with `git push --follow-tags`. The release
+   workflow builds the images, pushes them to Docker Hub with the version, `major.minor` and
+   `latest` tags, and attaches `docker-compose.yml`, `.env.docker.example` and the `Caddyfile` to
+   the GitHub release. Repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` must exist.
+
+State for 0.1.0: steps 1–4 are done locally (commit `chore(release): v0.1.0`, tag `v0.1.0`);
+the push, the Docker Hub secrets and the smoke test on a clean host (step 5) remain. 5. Smoke-test the published images on a clean host: install, sign in, create a file, draw, invite a
+second user, verify realtime, export PNG/SVG/PDF, back up. 6. Announce through the channel chosen in Decision D.
 
 ## 6. Rollback
 

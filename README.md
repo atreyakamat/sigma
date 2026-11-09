@@ -60,6 +60,10 @@ docker compose logs api | grep -A3 'first start'   # initial admin password (unl
 Open http://localhost:3000, sign in as `admin@sigma.local`, set your password, then create users
 under **Users** and add them to workspaces as viewers, editors or admins.
 
+To run published images instead of building, set `SIGMA_IMAGE_NAMESPACE` (the Docker Hub
+namespace) and `SIGMA_VERSION` (for example `0.1.0`) in `.env.docker`, then
+`docker compose --env-file .env.docker pull && docker compose --env-file .env.docker up -d --no-build`.
+
 HTTPS: set `PUBLIC_HOST` (a DNS name pointing at the machine), `PUBLIC_URL=https://<host>` and
 `COOKIE_SECURE=true` in `.env.docker`, then start with
 `docker compose --env-file .env.docker --profile https up -d --build`; Caddy obtains certificates
@@ -133,3 +137,7 @@ node packages/cli/bin/sigma.mjs checkpoint <documentId> "Before redesign"
 `⌘/Ctrl+scroll` zoom · `⌘Z` / `⇧⌘Z` undo/redo · `⌘D` duplicate · `⌘G` / `⇧⌘G` group/ungroup ·
 `⌥⌘K` frame selection · `⌘K` command palette · `?` shortcuts · `C` comment · `⌘[` `⌘]` reorder · `⇧⌘H` `⇧⌘V` flip · `⌘0` 100% · `⌘1` fit · `⌘2` zoom to selection ·
 arrows nudge (`⇧` ×10) · `Enter` edit text / enter group · `⇧Enter` select parent · `⌘'` pixel grid · `⇧⌘R` rulers.
+
+## License
+
+MIT. See `LICENSE`.
