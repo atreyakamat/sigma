@@ -70,7 +70,16 @@ for (const extra of [
 ])
   rmSync(join(stage, 'app', extra), { recursive: true, force: true });
 
-// 5. Package.
+// 5. Package. Empty signing variables (unset CI secrets) would be read as file paths.
+for (const key of [
+  'CSC_LINK',
+  'CSC_KEY_PASSWORD',
+  'APPLE_ID',
+  'APPLE_APP_SPECIFIC_PASSWORD',
+  'APPLE_TEAM_ID',
+  'WIN_CSC_LINK',
+])
+  if (process.env[key] === '') delete process.env[key];
 const args = process.argv.slice(2).join(' ');
 run(`pnpm dlx electron-builder@26.18.0 --config electron-builder.yml ${args}`, desktop);
 console.log(`\nDone. Output: ${join(desktop, 'release')}`);
