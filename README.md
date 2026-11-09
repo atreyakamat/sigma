@@ -45,9 +45,13 @@ account on the first screen. Nothing else to install.
 | macOS   | `SIGMA-…-mac-arm64.dmg`                   | First launch: right-click the app → **Open** (the build is not yet notarized)  |
 | Linux   | `SIGMA-…-linux-x86_64.AppImage` or `.deb` | AppImage: make it executable, then double-click                                |
 
+![First launch of the desktop app: create your account](docs/images/desktop-setup.png)
+
 Everything runs on your computer: the app includes its own database. To work with teammates,
 choose **SIGMA → Share on this network** in the menu; they open the link it shows in a browser.
-**SIGMA → Back up now…** saves all designs and images to a folder you pick.
+**SIGMA → Back up now…** saves all designs and images to a folder you pick. **Restore from backup…**
+brings a backup back (your current designs are moved aside, not deleted), and **Reset password…**
+sets a new password if you forget yours.
 
 ## Easiest install with Docker
 
@@ -134,6 +138,10 @@ it, and everyone in the file sees the result.
 ![Prototype preview player](docs/images/preview.png)
 
 ## AI: assistant, providers and Claude
+
+> **Beta.** The Demo provider is fully tested. Claude, OpenAI and local models are wired in but
+> have only been verified against simulated servers so far; verified support and streaming
+> replies are **coming soon**.
 
 SIGMA has three ways to bring a model into your design work. All of them use the same validated
 editing operations, respect the user's role, and save normal revisions you can roll back.
@@ -375,6 +383,8 @@ tests/e2e              Playwright end-to-end tests
 
 | Problem                                      | What to do                                                                                                          |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| I forgot my password (desktop app)           | Menu **SIGMA → Reset password…** on the computer that runs the app                                                  |
+| I want a clean start with Docker             | `docker compose --env-file .env.docker down -v` deletes all data; then start again                                  |
 | The page does not load                       | `docker compose --env-file .env.docker ps` should show four healthy containers. Check `docker compose logs web api` |
 | "Cross-origin request rejected" on sign-in   | Use the same address in the browser as in `PUBLIC_URL`, or update to v0.1.2 or later                                |
 | I lost the admin password                    | It is printed once in `docker compose logs api`. Another administrator can reset it under **Users**                 |

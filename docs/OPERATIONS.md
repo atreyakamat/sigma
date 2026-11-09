@@ -82,8 +82,12 @@ SIGMA Desktop runs the same server inside the application with its own PostgreSQ
   (`http://<this-computer>:3387`). Create accounts for teammates under Users. The computer must
   stay on, and the firewall must allow the port.
 - **Backup**: menu → Back up now… copies the database and uploads into a dated folder (the app
-  pauses for a moment). To restore, quit SIGMA and replace `pgdata` and `assets` in the data folder
-  with the copies from the backup.
+  pauses for a moment). Menu → Restore from backup… replaces the current data with a backup; the
+  previous data is moved to a `before-restore-<time>` folder inside the data folder.
+- **Forgotten password**: menu → Reset password… sets a new password for the owner (or the
+  account whose email you enter) and signs that account out everywhere. It only works in the app
+  window on the computer running SIGMA; the API refuses the request without a secret that only
+  the app holds.
 - **Port**: 3387 by default; if it is taken the app picks a free one for that run.
 - **Moving to a server later**: the desktop database is ordinary PostgreSQL; dump it with
   `pg_dump` from any PostgreSQL 17+ client while the app runs and restore it into the Docker

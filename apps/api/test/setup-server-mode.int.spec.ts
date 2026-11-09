@@ -17,5 +17,11 @@ describe('setup endpoint outside desktop mode', () => {
       .set('Origin', ORIGIN)
       .send({ name: 'X', email: 'x@example.com', password: 'Tangerine-Harbour-42' });
     expect(res.status).toBe(404);
+    const reset = await request(app.getHttpServer())
+      .post('/api/v1/setup/local-reset')
+      .set('Origin', ORIGIN)
+      .set('x-sigma-local', 'anything')
+      .send({ password: 'Tangerine-Harbour-42' });
+    expect(reset.status).toBe(404);
   });
 });

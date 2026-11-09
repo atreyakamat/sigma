@@ -17,6 +17,8 @@ export interface AppConfig {
   bootstrap: { email: string; name: string; password: string | null };
   /** Running inside the desktop app: first-run setup screen instead of a bootstrap admin. */
   desktop: boolean;
+  /** Secret known only to the desktop shell; authorises local-only actions such as a password reset. */
+  localToken: string | null;
   maxUploadBytes: number;
   dataDir: string;
   version: string;
@@ -63,6 +65,7 @@ export function configuration(): AppConfig {
     version:
       process.env['APP_VERSION'] ?? (typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'),
     desktop: bool('SIGMA_DESKTOP', false),
+    localToken: optional('SIGMA_LOCAL_TOKEN'),
     bootstrap: {
       email: (process.env['BOOTSTRAP_ADMIN_EMAIL'] ?? 'admin@sigma.local').toLowerCase(),
       name: process.env['BOOTSTRAP_ADMIN_NAME'] ?? 'Administrator',

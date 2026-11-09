@@ -269,7 +269,7 @@ async function startRuntime(options) {
       await client.end().catch(() => undefined);
     }
   }
-  const databaseUrl = `postgresql://sigma:${encodeURIComponent(config.dbPassword)}@127.0.0.1:${pgPort}/sigma?schema=public`;
+  let databaseUrl = `postgresql://sigma:${encodeURIComponent(config.dbPassword)}@127.0.0.1:${pgPort}/sigma?schema=public`;
 
   // The API bundle and its dependencies live outside this package (workspace in development,
   // resources folder when packaged).
@@ -284,6 +284,9 @@ async function startRuntime(options) {
     );
 
   let sigma = null;
+  // Known only to this process: authorises local-only actions such as a password reset.
+  const localToken = crypto.randomBytes(32).toString('base64url');
+  let lastPreRestoreDir = null;
   const startServer = async () => {
     let port = options.port ?? config.port;
     if (port !== 0 && !(await portIsFree(port, config.sharing ? '0.0.0.0' : '127.0.0.1'))) {
@@ -299,6 +302,7 @@ async function startRuntime(options) {
       host,
       webRoot: options.webRoot,
       desktop: true,
+      localToken,
       quiet: options.quiet ?? true,
     });
     return sigma;
@@ -346,6 +350,87 @@ async function startRuntime(options) {
         await startServer();
       }
       return out;
+    },
+    /** Sets a new password for the owner (or the account with `email`) and signs their sessions out. */
+    async resetPassword(password, email) {
+      const res = await fetch(`http://127.0.0.1:${sigma.port}/api/v1/setup/local-reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: `http://127.0.0.1:${sigma.port}`,
+          'x-sigma-local': localToken,
+        },
+        body: JSON.stringify({ password, ...(email ? { email } : {}) }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(
+          Array.isArray(body.message)
+            ? body.message.join('; ')
+            : (body.message ?? `Reset failed (${res.status})`),
+        );
+      return body;
+    },
+    /**
+     * Replaces the current database and uploads with a backup made by `backup()`. The current
+     * data is moved aside (not deleted) so a mistaken restore can be undone by hand.
+     */
+    async restore(backupDir) {
+      const srcPg = path.join(backupDir, 'pgdata');
+      const srcAssets = path.join(backupDir, 'assets');
+      const srcConfig = path.join(backupDir, 'config.json');
+      if (!fs.existsSync(path.join(srcPg, 'PG_VERSION')) || !fs.existsSync(srcConfig))
+        throw new Error(
+          'That folder is not a SIGMA backup (it should contain pgdata, assets and config.json).',
+        );
+      // The database files are tied to the password and session secret stored with the backup.
+      const reveal = secrets.reveal ?? ((v) => v);
+      const backed = JSON.parse(fs.readFileSync(srcConfig, 'utf8'));
+      let dbPassword;
+      let sessionSecret;
+      try {
+        dbPassword = reveal(backed.dbPassword);
+        sessionSecret = reveal(backed.sessionSecret);
+      } catch {
+        throw new Error(
+          'This backup was made by another user account or computer and its settings cannot be read here.',
+        );
+      }
+      const aside = path.join(
+        options.dataDir,
+        `before-restore-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`,
+      );
+      await sigma.close();
+      await pg.stop();
+      await stopOrphan(pgDir);
+      fs.mkdirSync(aside, { recursive: true });
+      fs.renameSync(pgDir, path.join(aside, 'pgdata'));
+      fs.renameSync(assetsDir, path.join(aside, 'assets'));
+      fs.copyFileSync(config.file, path.join(aside, 'config.json'));
+      try {
+        fs.cpSync(srcPg, pgDir, { recursive: true });
+        fs.cpSync(srcAssets, assetsDir, { recursive: true });
+        fs.rmSync(path.join(pgDir, 'postmaster.pid'), { force: true });
+        config = saveConfig(config, { dbPassword, sessionSecret }, secrets);
+      } catch (e) {
+        // Put the previous data back if the copy failed half way.
+        fs.rmSync(pgDir, { recursive: true, force: true });
+        fs.rmSync(assetsDir, { recursive: true, force: true });
+        fs.renameSync(path.join(aside, 'pgdata'), pgDir);
+        fs.renameSync(path.join(aside, 'assets'), assetsDir);
+        await pg.start();
+        await startServer();
+        throw e;
+      }
+      lastPreRestoreDir = aside;
+      await pg.start();
+      databaseUrl = `postgresql://sigma:${encodeURIComponent(config.dbPassword)}@127.0.0.1:${pgPort}/sigma?schema=public`;
+      await api.applyMigrations(databaseUrl, path.join(options.apiDir, 'prisma', 'migrations'));
+      await startServer();
+      return handle;
+    },
+    get lastPreRestoreDir() {
+      return lastPreRestoreDir;
     },
     async stop() {
       const within = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);

@@ -87,6 +87,7 @@ describe('embedded server (desktop mode)', () => {
       host: '127.0.0.1',
       webRoot,
       desktop: true,
+      localToken: 'local-token-for-tests-0123456789',
     });
     origin = sigma.url;
   });
@@ -156,5 +157,46 @@ describe('embedded server (desktop mode)', () => {
       }),
     });
     expect(again.status).toBe(409);
+  });
+
+  it('resets a forgotten password only with the desktop shell secret, and signs old sessions out', async () => {
+    const reset = (headers: Record<string, string>, body: unknown) =>
+      fetch(`${origin}/api/v1/setup/local-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: origin, ...headers },
+        body: JSON.stringify(body),
+      });
+    const login = (password: string) =>
+      fetch(`${origin}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: origin },
+        body: JSON.stringify({ email: 'asha@example.com', password }),
+      });
+    const before = await login('Tangerine-Harbour-42');
+    const oldCookie = (before.headers.get('set-cookie') ?? '').split(';')[0]!;
+    expect((await reset({}, { password: 'Brand-New-Secret-77' })).status).toBe(403);
+    expect(
+      (
+        await reset(
+          { 'x-sigma-local': 'wrong-token-for-tests-0123456789' },
+          { password: 'Brand-New-Secret-77' },
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (await reset({ 'x-sigma-local': 'local-token-for-tests-0123456789' }, { password: 'short' }))
+        .status,
+    ).toBe(400);
+    const ok = await reset(
+      { 'x-sigma-local': 'local-token-for-tests-0123456789' },
+      { password: 'Brand-New-Secret-77' },
+    );
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ email: 'asha@example.com' });
+    expect((await login('Tangerine-Harbour-42')).status).toBe(401);
+    expect((await login('Brand-New-Secret-77')).status).toBe(200);
+    expect(
+      (await fetch(`${origin}/api/v1/auth/me`, { headers: { Cookie: oldCookie } })).status,
+    ).toBe(401);
   });
 });

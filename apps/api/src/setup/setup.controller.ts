@@ -2,16 +2,20 @@ import {
   Body,
   ConflictException,
   Controller,
+  ForbiddenException,
   Get,
+  Headers,
+  HttpCode,
   NotFoundException,
   Post,
   Req,
   Res,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { timingSafeEqual } from 'node:crypto';
 import type { Request, Response } from 'express';
-import { SetupBody } from '@sigma/validation';
-import type { SetupInput, SetupResponse, SetupStatusDto } from '@sigma/validation';
+import { LocalResetBody, SetupBody } from '@sigma/validation';
+import type { LocalResetInput, SetupInput, SetupResponse, SetupStatusDto } from '@sigma/validation';
 import { AuditService } from '../audit/audit.service';
 import { AuthService } from '../auth/auth.service';
 import { Public } from '../common/auth.decorators';
@@ -104,5 +108,53 @@ export class SetupController {
       projectId: project.id,
       documentId: doc.id,
     };
+  }
+
+  /**
+   * Resets a password from the computer running the desktop app. The caller must present the
+   * secret that only the desktop shell holds, so no browser page or teammate on the network can
+   * use it. All of that account's sessions are signed out.
+   */
+  @Public()
+  @Post('local-reset')
+  @HttpCode(200)
+  async localReset(
+    @Body(zod(LocalResetBody)) body: LocalResetInput,
+    @Headers('x-sigma-local') presented: string | undefined,
+    @Req() req: Request,
+  ): Promise<{ email: string }> {
+    const expected = this.config.get('localToken', { infer: true });
+    if (!this.config.get('desktop', { infer: true }) || !expected) throw new NotFoundException();
+    const a = Buffer.from(presented ?? '');
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b))
+      throw new ForbiddenException('This can only be done from the SIGMA desktop app');
+    const user = body.email
+      ? await this.prisma.user.findUnique({ where: { email: body.email } })
+      : await this.prisma.user.findFirst({
+          where: { systemRole: 'ADMIN' },
+          orderBy: { createdAt: 'asc' },
+        });
+    if (!user) throw new NotFoundException('No account with that email');
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: await hashPassword(body.password),
+        mustChangePassword: false,
+        active: true,
+        twoFactorEnabled: false,
+        totpSecret: null,
+        recoveryCodes: [],
+      },
+    });
+    await this.prisma.session.deleteMany({ where: { userId: user.id } });
+    await this.audit.record('user.reset_password', {
+      actorId: user.id,
+      targetType: 'user',
+      targetId: user.id,
+      ip: req.ip,
+      metadata: { local: true },
+    });
+    return { email: user.email };
   }
 }

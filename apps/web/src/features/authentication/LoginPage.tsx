@@ -153,7 +153,12 @@ export function LoginPage() {
         <Button type="submit" variant="primary" className="h-9 w-full" disabled={busy}>
           {busy ? t('auth.signingIn') : t('auth.signIn')}
         </Button>
-        <p className="mt-4 text-[11px] text-ink-500">{t('auth.accountsByAdmin')}</p>
+        <p className="mt-4 text-[11px] text-ink-500">
+          {t('auth.accountsByAdmin')}{' '}
+          <a href="/desktop/reset-password" className="underline hover:text-ink-200">
+            Forgot your password?
+          </a>
+        </p>
       </form>
     </div>
   );

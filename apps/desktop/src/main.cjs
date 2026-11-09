@@ -78,6 +78,12 @@ function buildMenu() {
         },
         { type: 'separator' },
         { label: 'Back up now…', enabled: !!runtime, click: () => void backupNow() },
+        { label: 'Restore from backup…', enabled: !!runtime, click: () => void restoreBackup() },
+        {
+          label: 'Reset password…',
+          enabled: !!runtime,
+          click: () => win?.loadURL(`${runtime.url}/desktop/reset-password`),
+        },
         { label: 'Open data folder', click: () => shell.openPath(app.getPath('userData')) },
         { type: 'separator' },
         { role: 'quit', label: 'Quit SIGMA' },
@@ -144,6 +150,39 @@ async function backupNow() {
   } catch (e) {
     log(`backup failed: ${e.stack ?? e}`);
     dialog.showErrorBox('SIGMA', `The backup did not complete: ${e.message}`);
+  }
+}
+
+async function restoreBackup() {
+  const pick = await dialog.showOpenDialog(win, {
+    title: 'Choose a SIGMA backup folder',
+    properties: ['openDirectory'],
+  });
+  if (pick.canceled || !pick.filePaths[0]) return;
+  const confirm = await dialog.showMessageBox(win, {
+    type: 'warning',
+    buttons: ['Restore', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    title: 'Restore from backup',
+    message: 'Replace everything in SIGMA with this backup?',
+    detail: `${pick.filePaths[0]}\n\nYour current designs are moved to a "before-restore" folder inside the data folder, not deleted.`,
+  });
+  if (confirm.response !== 0) return;
+  try {
+    await runtime.restore(pick.filePaths[0]);
+    buildMenu();
+    await win?.loadURL(runtime.url);
+    await dialog.showMessageBox(win, {
+      type: 'info',
+      title: 'Restore complete',
+      message: 'SIGMA now shows the designs from the backup.',
+      detail: `The previous data was kept in:\n${runtime.lastPreRestoreDir}`,
+    });
+  } catch (e) {
+    log(`restore failed: ${e.stack ?? e}`);
+    await win?.loadURL(runtime.url).catch(() => undefined);
+    dialog.showErrorBox('SIGMA', `The restore did not complete: ${e.message}`);
   }
 }
 
@@ -216,6 +255,11 @@ ipcMain.handle('sigma:status', () => ({
   shareUrl: runtime?.shareUrl ?? null,
   version: app.getVersion(),
 }));
+// Only pages of the local app, shown in this app's own window, may reset a password.
+ipcMain.handle('sigma:reset-password', async (event, password, email) => {
+  if (!runtime || !event.senderFrame?.url.startsWith(runtime.url)) throw new Error('Not allowed');
+  return runtime.resetPassword(password, email);
+});
 ipcMain.handle('sigma:set-sharing', (_e, on) => toggleSharing(!!on));
 
 if (!app.requestSingleInstanceLock()) {

@@ -30,6 +30,8 @@ async function launch(): Promise<{ app: ElectronApplication; page: Page }> {
 test('first run: setup, draw, quit, relaunch, the work is still there', async () => {
   let { app, page } = await launch();
   await expect(page.getByTestId('setup-form')).toBeVisible({ timeout: 180_000 });
+  if (process.env.SIGMA_SCREENSHOT_DIR)
+    await page.screenshot({ path: join(process.env.SIGMA_SCREENSHOT_DIR, 'desktop-setup.png') });
   await page.getByLabel('Your name').fill('Asha Rao');
   await page.getByLabel('Email').fill('asha@example.com');
   await page.getByLabel('Password').fill('Tangerine-Harbour-42');
@@ -59,5 +61,17 @@ test('first run: setup, draw, quit, relaunch, the work is still there', async ()
   await expect(page.locator('aside').first().getByText('Rectangle')).toBeVisible({
     timeout: 30_000,
   });
+
+  // Forgotten password: the reset screen (menu → Reset password…) sets a new one and signs out.
+  await page.goto(new URL('/desktop/reset-password', page.url()).toString());
+  await page.getByLabel('New password', { exact: true }).fill('Brand-New-Secret-77');
+  await page.getByLabel('Repeat new password').fill('Brand-New-Secret-77');
+  await page.getByRole('button', { name: 'Set new password' }).click();
+  await expect(page.getByTestId('reset-done')).toContainText('asha@example.com');
+  await page.getByRole('link', { name: 'Sign in' }).click();
+  await page.getByLabel('Email').fill('asha@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('Brand-New-Secret-77');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.waitForURL((u) => !u.pathname.startsWith('/login'));
   await app.close();
 });

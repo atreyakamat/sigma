@@ -8,6 +8,24 @@ All notable changes to this project are documented here. The format follows
 
 Nothing yet.
 
+## [0.3.2] — 2026-11-09
+
+#### Added
+
+- Desktop: **Reset password…** (menu and a "Forgot your password?" link on the sign-in page). Works
+  only in the app window on the computer running SIGMA: the API endpoint (`POST /setup/local-reset`)
+  requires a per-run secret held by the desktop shell. Signs the account out everywhere.
+- Desktop: **Restore from backup…** replaces the database and uploads with a backup and keeps the
+  previous data in a `before-restore-<time>` folder.
+- The AI assistant and providers page are labelled **Beta**, stating what is coming soon
+  (streaming replies, verified Claude and OpenAI support).
+- README: desktop first-launch screenshot; troubleshooting entries for a forgotten password and a
+  clean start.
+
+#### Removed
+
+- The v0.3.0 GitHub release and tag (it had no installers and contained a test data folder).
+
 ## [0.3.1] — 2026-11-09
 
 First release that carries the desktop installers (v0.3.0 had none: its build failed in CI).

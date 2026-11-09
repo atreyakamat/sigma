@@ -585,3 +585,9 @@ export interface SetupResponse {
   projectId: string;
   documentId: string;
 }
+
+/** Desktop app: reset an account's password from the computer running SIGMA (no email involved). */
+export const LocalResetBody = z
+  .object({ email: EmailSchema.optional(), password: PasswordSchema })
+  .strict();
+export type LocalResetInput = z.infer<typeof LocalResetBody>;

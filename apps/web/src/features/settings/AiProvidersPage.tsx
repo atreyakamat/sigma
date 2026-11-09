@@ -122,8 +122,10 @@ export function AiProvidersPage() {
           <div>
             <h1 className="text-xl font-semibold">AI providers</h1>
             <p className="mt-1 text-[12px] text-ink-400">
-              Models the in-editor assistant can use. Keys are stored encrypted and never shown
-              again. The assistant only sees files the person chatting can see.
+              The assistant is in beta: the Demo provider is fully tested; Claude, OpenAI and local
+              models are wired in and verified support is coming soon. Models the in-editor
+              assistant can use. Keys are stored encrypted and never shown again. The assistant only
+              sees files the person chatting can see.
             </p>
           </div>
           <Button variant="primary" onClick={() => setOpen(true)} data-testid="add-ai-provider">

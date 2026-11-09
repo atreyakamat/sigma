@@ -100,6 +100,12 @@ export function AssistantPanel() {
     <div className="flex h-full flex-col" data-testid="assistant-panel">
       <div className="flex items-center gap-2 border-b border-ink-700 px-2 py-1.5">
         <Bot size={13} className="text-accent-300" />
+        <span
+          className="rounded bg-amber-500/20 px-1 text-[9px] font-semibold uppercase tracking-wide text-amber-300"
+          title="The assistant is in beta"
+        >
+          Beta
+        </span>
         <select
           className="field h-6 flex-1 text-[11px]"
           value={providerId}
@@ -122,6 +128,10 @@ export function AssistantPanel() {
               {readOnly
                 ? 'You have view-only access, so the assistant can describe the file but not change it.'
                 : 'Edits appear on the canvas for everyone in the file and can be undone from Version history.'}
+            </p>
+            <p className="mb-2 text-ink-500" data-testid="assistant-coming-soon">
+              Coming soon: replies that appear as they are written, and verified support for Claude
+              and OpenAI accounts. The Demo provider works today.
             </p>
             {SUGGESTIONS.map((s) => (
               <button

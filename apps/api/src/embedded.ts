@@ -19,6 +19,8 @@ export interface StartSigmaOptions {
   /** First-run setup screen instead of a bootstrap administrator. */
   desktop?: boolean;
   quiet?: boolean;
+  /** Random secret the desktop shell keeps; required by local-only endpoints (password reset). */
+  localToken?: string;
 }
 
 export interface RunningSigma {
@@ -39,6 +41,7 @@ export async function startSigma(options: StartSigmaOptions): Promise<RunningSig
     NODE_ENV: process.env['NODE_ENV'] ?? 'production',
     SIGMA_DESKTOP: options.desktop ? '1' : '',
     COOKIE_SECURE: 'false',
+    SIGMA_LOCAL_TOKEN: options.localToken ?? '',
     ...(options.publicUrl ? { CORS_ORIGIN: options.publicUrl } : {}),
   });
   // Loaded only now: the application module validates the environment as soon as it is imported.

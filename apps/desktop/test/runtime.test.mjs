@@ -117,4 +117,40 @@ describe('desktop runtime: bundled PostgreSQL + SIGMA in one process, no Docker'
     expect(existsSync(join(out, 'assets'))).toBe(true);
     expect((await fetch(`${runtime.url}/api/v1/health`)).status).toBe(200);
   }, 120_000);
+
+  it('resets the owner password locally and restores a backup, undoing later changes', async () => {
+    const target = mkdtempSync(join(tmpdir(), 'sigma-restore-'));
+    const backupDir = await runtime.backup(target);
+    // Changes after the backup: a new password and a new layer.
+    expect(await runtime.resetPassword('Brand-New-Secret-77')).toEqual({
+      email: 'asha@example.com',
+    });
+    const login = (password) =>
+      post(`${runtime.url}/api/v1/auth/login`, { email: 'asha@example.com', password });
+    expect((await login('Tangerine-Harbour-42')).status).toBe(401);
+    const fresh = await login('Brand-New-Secret-77');
+    expect(fresh.status).toBe(200);
+    const freshCookie = fresh.headers.get('set-cookie').split(';')[0];
+    await post(
+      `${runtime.url}/api/v1/documents/${documentId}/ops`,
+      { ops: [{ op: 'add', type: 'ELLIPSE', name: 'Added after the backup' }] },
+      freshCookie,
+    );
+
+    await expect(runtime.restore(join(target, 'not-a-backup'))).rejects.toThrow(
+      /not a SIGMA backup/i,
+    );
+    await runtime.restore(backupDir);
+    // The restored state has the old password and no later layer; the pre-restore data is kept aside.
+    const old = await login('Tangerine-Harbour-42');
+    expect(old.status).toBe(200);
+    const outline = await (
+      await fetch(`${runtime.url}/api/v1/documents/${documentId}/outline`, {
+        headers: { Cookie: old.headers.get('set-cookie').split(';')[0] },
+      })
+    ).json();
+    expect(JSON.stringify(outline)).toContain('Kept across restarts');
+    expect(JSON.stringify(outline)).not.toContain('Added after the backup');
+    expect(existsSync(runtime.lastPreRestoreDir)).toBe(true);
+  }, 180_000);
 });
