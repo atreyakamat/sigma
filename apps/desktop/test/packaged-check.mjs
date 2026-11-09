@@ -87,8 +87,18 @@ check(
   'server-side PNG export works (native canvas)',
 );
 
-child.kill('SIGINT');
-for (let i = 0; i < 30 && child.exitCode === null; i++) await sleep(500);
-if (child.exitCode === null) child.kill('SIGKILL');
-rmSync(root, { recursive: true, force: true });
+// Stop the app. Windows has no graceful signal from here, so end the whole process tree there.
+if (process.platform === 'win32') {
+  spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+  await sleep(3000);
+} else {
+  child.kill('SIGINT');
+  for (let i = 0; i < 30 && child.exitCode === null; i++) await sleep(500);
+  if (child.exitCode === null) child.kill('SIGKILL');
+}
+try {
+  rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 1000 });
+} catch (e) {
+  console.warn(`Could not remove the temporary data folder (${e.code}); it is ignored by git.`);
+}
 console.log('Packaged build passed all checks.');
