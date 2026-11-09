@@ -8,6 +8,15 @@ All notable changes to this project are documented here. The format follows
 
 Nothing yet.
 
+## [0.1.1] — 2026-11-09
+
+#### Fixed
+
+- Web container failed to start from a fresh clone: the nginx security-header snippet had been
+  rewrapped by the formatter into invalid syntax. The snippet is now `security-headers.conf`,
+  excluded from formatting, and verified by a clean-clone install test. v0.1.0 images are
+  superseded by this release.
+
 ## [0.1.0] — 2026-11-09
 
 First release: the self-hosted stack described in `docs/LAUNCH.md`. Licence: MIT. Install by

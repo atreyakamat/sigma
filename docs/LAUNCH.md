@@ -76,6 +76,14 @@ candidate commit.
    GitHub release. No secrets are required. 5. Smoke-test the published images on a clean host: install, sign in, create a file, draw, invite a
    second user, verify realtime, export PNG/SVG/PDF, back up. 6. Announce through the channel chosen in Decision D.
 
+### Release log
+
+- **v0.1.0** (2026-11-09): tagged and published, then found to crash-loop the web container on a
+  fresh clone (nginx snippet mangled by the formatter). Superseded; marked as pre-release on GitHub.
+- **v0.1.1** (2026-11-09): the fix, verified by cloning the public repository into an empty
+  directory, `docker compose up --build`, and the full e2e suite against it. This is the launch
+  release.
+
 ## 6. Rollback
 
 Images are immutable per tag: `docker compose pull && docker compose up -d` with the previous tag
