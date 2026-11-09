@@ -8,6 +8,16 @@ All notable changes to this project are documented here. The format follows
 
 Nothing yet.
 
+## [0.3.3] — 2026-11-09
+
+Desktop installers that include password reset and restore (v0.3.2's desktop build failed in CI).
+
+#### Fixed
+
+- Restore: the copied database folder is made owner-only on Linux and macOS and granted to the
+  current user on Windows, so the database starts after a restore on every system.
+- Windows: `pg_ctl` output is written to `pg_ctl.log` in the data folder for diagnosis.
+
 ## [0.3.2] — 2026-11-09
 
 #### Added
