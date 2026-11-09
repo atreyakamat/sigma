@@ -4,3 +4,5 @@ pnpm-lock.yaml
 .turbo
 infrastructure/deployment/
 install/docker-compose.yml
+apps/desktop/release/
+apps/desktop/stage/

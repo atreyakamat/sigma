@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { ApiRequestError, http } from '../../lib/api';
 import { useAuth } from './AuthProvider';
 import { useT } from '../../lib/i18n';
+import { useSetupStatus } from '../setup/SetupPage';
 
 export function LoginPage() {
   const { user } = useAuth();
@@ -21,7 +22,9 @@ export function LoginPage() {
   const [code, setCode] = useState('');
   const t = useT();
   const next = params.get('next') ?? '/';
+  const setup = useSetupStatus();
   if (user) return <Navigate to={user.mustChangePassword ? '/change-password' : next} replace />;
+  if (setup.data?.needsSetup) return <Navigate to="/setup" replace />;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

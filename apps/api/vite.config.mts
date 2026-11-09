@@ -13,13 +13,20 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   build: {
-    ssr: 'src/main.ts',
+    ssr: true,
     outDir: 'dist',
     emptyOutDir: true,
     target: 'node22',
     sourcemap: true,
     minify: false,
-    rollupOptions: { output: { format: 'cjs', entryFileNames: 'main.cjs' } },
+    rollupOptions: {
+      input: { main: 'src/main.ts', embedded: 'src/embedded.ts' },
+      output: {
+        format: 'cjs',
+        entryFileNames: '[name].cjs',
+        chunkFileNames: 'chunks/[name]-[hash].cjs',
+      },
+    },
   },
   ssr: { noExternal: [/^@sigma\//], target: 'node' },
 });

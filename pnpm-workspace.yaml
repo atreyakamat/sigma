@@ -17,3 +17,9 @@ allowBuilds:
   '@prisma/engines': true
   prisma: true
   '@swc/core': false
+  # Electron downloads its runtime; embedded-postgres links its bundled PostgreSQL binaries.
+  electron: true
+  '@embedded-postgres/linux-x64': true
+  '@embedded-postgres/darwin-arm64': true
+  '@embedded-postgres/darwin-x64': true
+  '@embedded-postgres/windows-x64': true

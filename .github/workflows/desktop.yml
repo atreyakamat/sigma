@@ -1,0 +1,77 @@
+name: Desktop
+
+# Builds the SIGMA Desktop installers (no Docker needed by users) on each operating system,
+# checks the packaged app end to end, and attaches the installers to the GitHub release for a tag.
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            exe: apps/desktop/release/linux-unpacked/sigma-desktop
+            artifacts: |
+              apps/desktop/release/*.AppImage
+              apps/desktop/release/*.deb
+          - name: Windows
+            os: windows-latest
+            exe: apps/desktop/release/win-unpacked/SIGMA.exe
+            artifacts: apps/desktop/release/*.exe
+          - name: macOS
+            os: macos-latest
+            exe: apps/desktop/release/mac-arm64/SIGMA.app/Contents/MacOS/SIGMA
+            artifacts: apps/desktop/release/*.dmg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Runtime tests (bundled PostgreSQL + server in one process)
+        run: pnpm --filter @sigma/desktop test
+
+      - name: Build installers
+        run: node scripts/build-desktop.mjs
+        env:
+          # Signing is optional: without these secrets the installers are built unsigned.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK && 'true' || 'false' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Check the packaged app (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node apps/desktop/test/packaged-check.mjs "$PWD/${{ matrix.exe }}"
+      - name: Check the packaged app (Windows, macOS)
+        if: runner.os != 'Linux'
+        shell: bash
+        run: node apps/desktop/test/packaged-check.mjs "$PWD/${{ matrix.exe }}"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sigma-desktop-${{ matrix.name }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: warn
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifacts }}

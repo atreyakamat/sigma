@@ -15,6 +15,8 @@ export interface AppConfig {
   cookieSecure: boolean;
   trustProxy: boolean;
   bootstrap: { email: string; name: string; password: string | null };
+  /** Running inside the desktop app: first-run setup screen instead of a bootstrap admin. */
+  desktop: boolean;
   maxUploadBytes: number;
   dataDir: string;
   version: string;
@@ -60,6 +62,7 @@ export function configuration(): AppConfig {
     dataDir: process.env['DATA_DIR'] ?? './data',
     version:
       process.env['APP_VERSION'] ?? (typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'),
+    desktop: bool('SIGMA_DESKTOP', false),
     bootstrap: {
       email: (process.env['BOOTSTRAP_ADMIN_EMAIL'] ?? 'admin@sigma.local').toLowerCase(),
       name: process.env['BOOTSTRAP_ADMIN_NAME'] ?? 'Administrator',

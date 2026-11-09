@@ -567,3 +567,21 @@ export interface AiChatResponse {
   provider: AiProviderSummaryDto;
   stopReason: string;
 }
+
+/* ---------------- first-run setup (desktop app) */
+export const SetupBody = z
+  .object({ name: NameSchema, email: EmailSchema, password: PasswordSchema })
+  .strict();
+export type SetupInput = z.infer<typeof SetupBody>;
+export interface SetupStatusDto {
+  /** True when running inside the desktop app. */
+  desktop: boolean;
+  /** True when no account exists yet and the setup screen should be shown. */
+  needsSetup: boolean;
+}
+export interface SetupResponse {
+  user: UserDto;
+  workspaceId: string;
+  projectId: string;
+  documentId: string;
+}

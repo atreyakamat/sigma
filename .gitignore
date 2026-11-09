@@ -13,3 +13,7 @@ playwright-report/
 tests/benchmarks/results/
 .env.docker
 !.env.docker.example
+apps/desktop/.tmp/
+apps/desktop/.tmp-app/
+apps/desktop/release/
+apps/desktop/stage/

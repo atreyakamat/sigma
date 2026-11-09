@@ -23,6 +23,7 @@ import { VersionsModule } from './versions/versions.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { SharingModule } from './sharing/sharing.module';
 import { AiModule } from './ai/ai.module';
+import { SetupModule } from './setup/setup.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AiModule } from './ai/ai.module';
     WorkspacesModule,
     SharingModule,
     AiModule,
+    SetupModule,
     MembershipsModule,
     ProjectsModule,
     FoldersModule,

@@ -8,6 +8,31 @@ All notable changes to this project are documented here. The format follows
 
 Nothing yet.
 
+## [0.3.0] — 2026-11-09
+
+#### Added
+
+- **SIGMA Desktop** (`apps/desktop`): a normal desktop application that needs no Docker. An
+  Electron window around the existing server running in-process with a bundled PostgreSQL;
+  designs, uploads and settings live in the user's data folder. First launch shows a setup screen
+  (create your account, land in a starter file). Menu: Share on this network (teammates join from
+  a browser), Back up now, Open data folder. Clean shutdown, recovery from an unclean one, and a
+  fallback port when 3387 is taken.
+- Embeddable server: `startSigma()` (`apps/api/src/embedded.ts`) serves the web client, API and
+  realtime socket from one port with the same security headers as the Docker stack;
+  `applyMigrations()` applies the SQL migrations without the Prisma CLI; `GET /setup/status` and
+  `POST /setup` for first-run account creation (desktop mode only).
+- Packaging: `pnpm desktop:build` (electron-builder) produces AppImage/deb, NSIS `.exe` and `.dmg`;
+  `.github/workflows/desktop.yml` builds and checks them on Linux, Windows and macOS and attaches
+  them to the release. `apps/desktop/test/packaged-check.mjs` verifies a packaged build end to end.
+
+#### Verified
+
+- Linux: runtime tests (6), Electron smoke test (setup → draw → quit → relaunch → data kept), and
+  the packaged build check on the unpacked app; the AppImage (183 MB) starts and serves.
+- Windows and macOS installers are produced by CI only and have not been run by hand. They are
+  unsigned, so both systems show a warning on first launch.
+
 ## [0.2.1] — 2026-11-10
 
 #### Added

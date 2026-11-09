@@ -1,41 +1,15 @@
 import 'reflect-metadata';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { NestFactory } from '@nestjs/core';
-import cookieParser from 'cookie-parser';
-import helmet from 'helmet';
-import { AppModule } from './app.module';
+import { GLOBAL_PREFIX, createSigmaApp } from './app.factory';
 import { PresenceGateway } from './collaboration/presence.gateway';
-import { metricsMiddleware } from './metrics/metrics';
 import type { AppConfig } from './config/configuration';
 
-export const GLOBAL_PREFIX = 'api/v1';
+export { GLOBAL_PREFIX };
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
-  const config = app.get(ConfigService<AppConfig, true>);
-
-  app.setGlobalPrefix(GLOBAL_PREFIX);
-  if (config.get('trustProxy', { infer: true }))
-    app.getHttpAdapter().getInstance().set('trust proxy', 1);
-  app.use(metricsMiddleware);
-  app.use(helmet());
-  app.use(cookieParser());
-  app.enableCors({
-    origin: config.get('corsOrigin', { infer: true }),
-    credentials: true,
-  });
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true },
-    }),
-  );
-  app.enableShutdownHooks();
-
-  const port = config.get('port', { infer: true });
+  const app = await createSigmaApp({ webRoot: process.env['SIGMA_WEB_ROOT'] || undefined });
+  const port = app.get(ConfigService<AppConfig, true>).get('port', { infer: true });
   await app.listen(port);
   app.get(PresenceGateway).attach();
   Logger.log(`Sigma API listening on http://localhost:${port}/${GLOBAL_PREFIX}`, 'Bootstrap');

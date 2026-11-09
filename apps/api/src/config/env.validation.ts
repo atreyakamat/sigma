@@ -29,6 +29,7 @@ export class EnvironmentVariables {
   @IsOptional() @IsInt() @Min(1) @Max(365) SESSION_TTL_DAYS?: number;
   @IsOptional() @IsString() BOOTSTRAP_ADMIN_EMAIL?: string;
   @IsOptional() @IsString() BOOTSTRAP_ADMIN_NAME?: string;
+  @IsOptional() @IsString() SIGMA_DESKTOP?: string;
   @IsOptional() @IsString() BOOTSTRAP_ADMIN_PASSWORD?: string;
   @IsOptional() @IsInt() @Min(1) @Max(1024) MAX_UPLOAD_MB?: number;
   @IsOptional() @IsString() DATA_DIR?: string;

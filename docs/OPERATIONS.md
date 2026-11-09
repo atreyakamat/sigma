@@ -69,3 +69,24 @@ images), or `docker compose --env-file .env.docker up -d --build` to rebuild fro
 Each API container keeps the open documents' CRDT rooms in memory and folds them into the database
 after `COLLAB_PERSIST_DEBOUNCE_MS` (default 1000 ms). Run a single API instance; a second instance
 would need sticky sessions (ADR-0012). A graceful shutdown flushes every open room.
+
+## Desktop app
+
+SIGMA Desktop runs the same server inside the application with its own PostgreSQL; no Docker.
+
+- **Data folder** (menu → Open data folder): `pgdata/` (database), `assets/` (uploads),
+  `config.json` (port, sharing, secrets protected by the system keychain), `sigma.log`.
+  Linux `~/.config/SIGMA`, macOS `~/Library/Application Support/SIGMA`, Windows
+  `%APPDATA%\SIGMA`.
+- **Sharing**: menu → Share on this network binds the app to all interfaces and shows the link
+  (`http://<this-computer>:3387`). Create accounts for teammates under Users. The computer must
+  stay on, and the firewall must allow the port.
+- **Backup**: menu → Back up now… copies the database and uploads into a dated folder (the app
+  pauses for a moment). To restore, quit SIGMA and replace `pgdata` and `assets` in the data folder
+  with the copies from the backup.
+- **Port**: 3387 by default; if it is taken the app picks a free one for that run.
+- **Moving to a server later**: the desktop database is ordinary PostgreSQL; dump it with
+  `pg_dump` from any PostgreSQL 17+ client while the app runs and restore it into the Docker
+  stack (`scripts/restore.sh`).
+- **Building**: `pnpm desktop:build` on the target operating system; signing uses the standard
+  electron-builder variables (`CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, …) when present.

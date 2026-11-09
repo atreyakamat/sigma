@@ -12,6 +12,7 @@ import { TokensPage } from '../features/settings/TokensPage';
 import { SecurityPage } from '../features/settings/SecurityPage';
 import { AuditPage } from '../features/settings/AuditPage';
 import { AiProvidersPage } from '../features/settings/AiProvidersPage';
+import { SetupPage } from '../features/setup/SetupPage';
 import { PreviewPage } from '../features/prototype/PreviewPage';
 import { WorkspacePage } from '../features/workspace/WorkspacePage';
 import { WorkspacesPage } from '../features/workspace/WorkspacesPage';
@@ -27,6 +28,7 @@ export function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/setup" element={<SetupPage />} />
             <Route path="/share/:token" element={<EditorPage />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/change-password" element={<ChangePasswordPage />} />

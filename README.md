@@ -20,7 +20,8 @@ command.
 
 ## Contents
 
-- [Easiest install](#easiest-install-no-technical-setup)
+- [Desktop app](#desktop-app-no-docker-no-setup)
+- [Easiest install with Docker](#easiest-install-with-docker)
 - [Quick start from source](#quick-start-from-source-5-minutes)
 - [What you can do](#what-you-can-do)
 - [A short tour](#a-short-tour)
@@ -32,7 +33,23 @@ command.
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
 
-## Easiest install (no technical setup)
+## Desktop app (no Docker, no setup)
+
+Download SIGMA for your computer from the
+[latest release](https://github.com/atreyakamat/sigma/releases/latest), open it, and create your
+account on the first screen. Nothing else to install.
+
+| System  | File                                      | Notes                                                                          |
+| ------- | ----------------------------------------- | ------------------------------------------------------------------------------ |
+| Windows | `SIGMA-…-windows-x64.exe`                 | Windows may warn about an unknown publisher: choose **More info → Run anyway** |
+| macOS   | `SIGMA-…-mac-arm64.dmg`                   | First launch: right-click the app → **Open** (the build is not yet notarized)  |
+| Linux   | `SIGMA-…-linux-x86_64.AppImage` or `.deb` | AppImage: make it executable, then double-click                                |
+
+Everything runs on your computer: the app includes its own database. To work with teammates,
+choose **SIGMA → Share on this network** in the menu; they open the link it shows in a browser.
+**SIGMA → Back up now…** saves all designs and images to a folder you pick.
+
+## Easiest install with Docker
 
 Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), open it, then paste
 one line.
@@ -314,10 +331,13 @@ pnpm verify                                                         # typecheck,
 pnpm --filter @sigma/api test:integration                           # API tests against PostgreSQL
 pnpm test:e2e                                                       # browser tests against the Docker stack
 pnpm screenshots                                                    # regenerate the README images
+pnpm desktop                                                        # run the desktop app from source
+pnpm desktop:build                                                  # build the installer for this OS
 ```
 
 ```
 apps/web               React interface (Vite, Tailwind, Zustand, TanStack Query)
+apps/desktop           Electron desktop app: bundled PostgreSQL + the server in one process
 apps/api               NestJS API (Prisma, PostgreSQL, WebSocket presence and realtime rooms, AI)
 packages/document      document schema, scene graph, components, auto layout, edit operations
 packages/engine        editor core: selection, hit testing, input, operations, prototype runtime

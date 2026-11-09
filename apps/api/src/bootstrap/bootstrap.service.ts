@@ -16,6 +16,8 @@ export class BootstrapService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    // The desktop app creates the owner from its setup screen instead.
+    if (this.config.get('desktop', { infer: true })) return;
     if ((await this.prisma.user.count()) > 0) return;
     const { email, name, password } = this.config.get('bootstrap', { infer: true });
     const initial = password ?? generatePassword();

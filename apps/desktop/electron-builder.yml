@@ -1,0 +1,40 @@
+# Packaging for SIGMA Desktop. Run through `pnpm desktop:build` (scripts/build-desktop.mjs), which
+# prepares `stage/app` (the Electron shell with production dependencies) and `stage/api` (the
+# SIGMA server bundle with its dependencies) before electron-builder runs.
+appId: local.sigma.desktop
+productName: SIGMA
+copyright: Copyright © 2026 SIGMA contributors
+electronVersion: 45.2.3
+directories:
+  app: stage/app
+  output: release
+  buildResources: build
+# The bundled PostgreSQL is a set of executables that must exist as real files.
+asar: false
+npmRebuild: false
+files:
+  - '**/*'
+extraResources:
+  - from: stage/api
+    to: api
+  - from: ../web/dist
+    to: web
+linux:
+  target: [AppImage, deb]
+  category: Graphics
+  maintainer: SIGMA contributors
+  artifactName: SIGMA-${version}-linux-${arch}.${ext}
+win:
+  target: [nsis]
+  artifactName: SIGMA-${version}-windows-${arch}.${ext}
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: true
+mac:
+  target: [dmg]
+  category: public.app-category.graphics-design
+  artifactName: SIGMA-${version}-mac-${arch}.${ext}
+  hardenedRuntime: true
+afterPack: build/after-pack.cjs
+publish: null
