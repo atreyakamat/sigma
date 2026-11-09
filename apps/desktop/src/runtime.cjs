@@ -164,8 +164,14 @@ async function startRuntime(options) {
   const pgOutput = [];
   let pgCtl = null;
   const explain = (step) => (e) => {
+    const detail =
+      e && typeof e === 'object' && 'message' in e
+        ? e.message
+        : e === undefined || e === null
+          ? 'no error given'
+          : String(e);
     throw new Error(
-      `${step} failed: ${e instanceof Error ? e.message : (e ?? 'no error given')}\n${pgOutput.slice(-15).join('\n')}`,
+      `${step} failed (${process.platform}${pgCtl ? ', pg_ctl' : ''}): ${detail}\n${pgOutput.slice(-15).join('\n')}`,
       { cause: e },
     );
   };
@@ -175,8 +181,8 @@ async function startRuntime(options) {
     password: config.dbPassword,
     port: pgPort,
     persistent: true,
-    onLog: () => {},
-    onError: (e) => log(`postgres: ${e}`),
+    onLog: (m) => pgOutput.push(String(m)),
+    onError: (e) => pgOutput.push(String(e)),
   });
   const firstRun = !fs.existsSync(path.join(pgDir, 'PG_VERSION'));
   if (firstRun) {
@@ -186,9 +192,52 @@ async function startRuntime(options) {
     const tookOver = await stopOrphan(pgDir);
     if (clearStaleLock(pgDir) || tookOver) log('Recovered from an unclean shutdown.');
   }
-  await withTimeout(pg.start(), 60_000, 'Starting the database').catch(
-    explain('Starting the database'),
-  );
+  // On Windows the server is started through pg_ctl, which drops administrator rights the way
+  // PostgreSQL requires (postgres.exe refuses to run elevated). Elsewhere the library starts it.
+  if (process.platform === 'win32') {
+    const bin = await import('@embedded-postgres/windows-x64');
+    pgCtl = fs.existsSync(`${bin.pg_ctl}.exe`) ? `${bin.pg_ctl}.exe` : bin.pg_ctl;
+    pgOutput.push(`pg_ctl: ${pgCtl} (exists: ${fs.existsSync(pgCtl)})`);
+    const { execFile } = require('node:child_process');
+    const ctl = (args) =>
+      new Promise((resolve, reject) =>
+        execFile(pgCtl, args, { windowsHide: true }, (err, stdout, stderr) => {
+          pgOutput.push(String(stdout), String(stderr));
+          if (err)
+            reject(
+              new Error(
+                `pg_ctl ${args[args.length - 1]} exited with ${err.code ?? err.signal ?? err.message}`,
+              ),
+            );
+          else resolve();
+        }),
+      );
+    const serverLog = path.join(options.dataDir, 'postgres.log');
+    pg.start = () =>
+      ctl([
+        '-D',
+        pgDir,
+        '-o',
+        `-p ${pgPort} -c listen_addresses=127.0.0.1`,
+        '-l',
+        serverLog,
+        '-w',
+        '-t',
+        '60',
+        'start',
+      ]);
+    pg.stop = () => ctl(['-D', pgDir, '-m', 'fast', '-w', '-t', '30', 'stop']);
+  }
+  await withTimeout(pg.start(), 90_000, 'Starting the database').catch((e) => {
+    try {
+      pgOutput.push(
+        fs.readFileSync(path.join(options.dataDir, 'postgres.log'), 'utf8').slice(-1500),
+      );
+    } catch {
+      /* no server log */
+    }
+    return explain('Starting the database')(e);
+  });
   if (firstRun) await pg.createDatabase('sigma');
   const databaseUrl = `postgresql://sigma:${encodeURIComponent(config.dbPassword)}@127.0.0.1:${pgPort}/sigma?schema=public`;
 
