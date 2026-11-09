@@ -1,7 +1,7 @@
 {
   "name": "sigma",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "MIT",
   "description": "Sigma: a browser-based collaborative design platform with an independent editor engine.",
   "packageManager": "pnpm@12.18.0",

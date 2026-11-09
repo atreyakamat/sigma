@@ -8,6 +8,27 @@ All notable changes to this project are documented here. The format follows
 
 Nothing yet.
 
+## [0.3.1] — 2026-11-09
+
+First release that carries the desktop installers (v0.3.0 had none: its build failed in CI).
+
+#### Fixed
+
+- Removed a test data folder (`apps/desktop/.tmp-pack`) that was committed by mistake in v0.3.0
+  and broke packaging; it is ignored now.
+- Windows: the bundled PostgreSQL is started through `pg_ctl` (required when running elevated),
+  located through the database library, launched without inherited pipes, and the database is
+  created over a plain connection.
+- macOS: unset signing variables are no longer read as file paths.
+- Windows installer: the packaging tool runs from a short path (NSIS 260-character limit), with a
+  zip package as fallback.
+
+#### Verified in CI
+
+- Linux, macOS and Windows: runtime tests, installer build, and the packaged-app check (web
+  client, first-run setup, edits, native PNG export) all pass. No installer has been run by hand
+  on Windows or macOS, and none is code-signed.
+
 ## [0.3.0] — 2026-11-09
 
 #### Added

@@ -95,6 +95,9 @@ candidate commit.
 - **v0.3.0** (2026-11-09): SIGMA Desktop (no Docker). Linux build verified locally; Windows and
   macOS installers come from CI, unsigned and not yet hand-tested.
 
+- **v0.3.1** (2026-11-09): desktop installers for Linux, Windows and macOS built and checked in
+  CI and attached to the release. Unsigned; not yet hand-tested on Windows or macOS.
+
 ## 6. Rollback
 
 Images are immutable per tag: `docker compose pull && docker compose up -d` with the previous tag
