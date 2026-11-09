@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { downloadBlob, exportPng } from '@sigma/engine';
 import { exportSvg, serializeDocument } from '@sigma/import-export';
 import type { NodeId } from '@sigma/shared';
-import { useEditor } from '../editor-context';
+import { useEditor, useEditorContext } from '../editor-context';
+import { pdfExportPath } from '../../../lib/export-urls';
+import { toast } from '../../../components/ui/toast';
 import { useSelectionIds } from '../hooks';
 
 export function ExportMenu({ onClose }: { onClose: () => void }) {
   const editor = useEditor();
+  const { meta, shared = false } = useEditorContext();
   const selection = useSelectionIds();
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(2);
@@ -50,6 +53,25 @@ export function ExportMenu({ onClose }: { onClose: () => void }) {
     const svg = exportSvg(editor.graph, targetIds(), { prolog: true });
     downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${baseName()}.svg`);
     onClose();
+  };
+  const doPdf = async () => {
+    setBusy(true);
+    try {
+      const ids = targetIds();
+      const single = ids.length === 1 ? editor.graph.getNode(ids[0] as NodeId) : null;
+      const frame = single && single.type !== 'PAGE' ? single.id : null;
+      const res = await fetch(pdfExportPath(meta.documentId, scale, frame), {
+        credentials: 'include',
+      });
+      if (!res.ok)
+        throw new Error((await res.json().catch(() => ({ message: res.statusText }))).message);
+      downloadBlob(await res.blob(), `${baseName()}.pdf`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'PDF export failed');
+    } finally {
+      setBusy(false);
+      onClose();
+    }
   };
   const doJson = () => {
     downloadBlob(
@@ -107,6 +129,16 @@ export function ExportMenu({ onClose }: { onClose: () => void }) {
         >
           Download SVG
         </button>
+        {!shared && (
+          <button
+            className="rounded-md bg-ink-700 px-2 py-1.5 text-[12px] font-medium hover:bg-ink-600 disabled:opacity-50"
+            disabled={busy}
+            onClick={() => void doPdf()}
+            data-testid="download-pdf"
+          >
+            Download PDF
+          </button>
+        )}
         <button
           className="rounded-md bg-ink-700 px-2 py-1.5 text-[12px] font-medium hover:bg-ink-600"
           onClick={doJson}

@@ -4,3 +4,4 @@ export * from './json';
 export * from './design-tokens';
 export * from './svg-import';
 export * from './xml';
+export * from './pdf';

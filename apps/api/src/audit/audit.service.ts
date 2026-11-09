@@ -12,6 +12,8 @@ export type AuditAction =
   | 'auth.session_revoked'
   | 'auth.token_created'
   | 'auth.token_revoked'
+  | 'share.create'
+  | 'share.revoke'
   | 'user.create'
   | 'user.update'
   | 'user.reset_password'

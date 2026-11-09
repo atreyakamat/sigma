@@ -44,6 +44,10 @@ co-editing (Yjs) and vector tools (pen, booleans) are next. See
 - Security and operations: TOTP two-factor authentication with recovery codes, session listing and
   revocation, administrative audit log, Prometheus metrics, optional HTTPS edge (Caddy), backup and
   restore scripts. Works on tablets (floating panels, pinch-to-zoom) and in English or Hindi.
+- Share links: read-only links to a file that open without an account, with optional expiry and
+  one-click revocation. PDF export (one page per frame) from the editor, the API and the CLI.
+- Launch readiness: `docs/LAUNCH.md` defines the v0.1.0 release, its go/no-go checklist, open
+  decisions and the release procedure; `docs/security-review-2026-11.md` records the review.
 
 ## Self-hosting (Docker)
 
@@ -107,6 +111,7 @@ docs                   architecture, engine, API, database, decisions (ADRs)
 | [docs/TESTING.md](docs/TESTING.md)             | Test strategy and commands                           |
 | [docs/SECURITY.md](docs/SECURITY.md)           | Implemented controls and known limits                |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md)       | HTTPS, backups, monitoring, upgrades                 |
+| [docs/LAUNCH.md](docs/LAUNCH.md)               | Launch definition, go/no-go checklist, release steps |
 | [docs/decisions/](docs/decisions/)             | Architecture decision records                        |
 | [docs/engine/](docs/engine/)                   | Benchmark methodology and results                    |
 | [CONTRIBUTING.md](CONTRIBUTING.md)             | Workflow and rules                                   |
@@ -117,6 +122,7 @@ docs                   architecture, engine, API, database, decisions (ADRs)
 export SIGMA_URL=http://localhost:3000 SIGMA_TOKEN=sgm_…   # token from Account → API tokens
 node packages/cli/bin/sigma.mjs frames <documentId> --approved
 node packages/cli/bin/sigma.mjs export-all <documentId> ./out --format png --scale 2
+node packages/cli/bin/sigma.mjs export <documentId> deck.pdf --approved          # one PDF page per approved frame
 node packages/cli/bin/sigma.mjs tokens <documentId> --css > tokens.css
 node packages/cli/bin/sigma.mjs checkpoint <documentId> "Before redesign"
 ```

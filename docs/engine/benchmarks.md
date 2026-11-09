@@ -24,6 +24,25 @@ Browser (Playwright, headless Chromium, 1600×1000): `loadDocument`, full frame 
 node visible), full frame at 100% (culling active), pan frames, partial redraw after moving one
 node, synthetic `pointermove` → hover hit test + overlay draw, select-all overlay draw, JS heap.
 
+## Results summary (2026-11-09, headless, Linux x64, Node 26) — after milestones 5–7
+
+Full table: `benchmarks-headless-2026-11-09.md`. The document schema grew (components, layout,
+interactions), so validation and load cost more than on 2026-11-07; command latency is unchanged
+after fixing instance projection to visit only `INSTANCE` nodes (it previously walked the whole
+tree on every change: 1.1 ms per single-node move at 10k nodes before the fix, 0.04 ms after).
+
+| Metric                          |     100 |   1,000 |  10,000 |
+| ------------------------------- | ------: | ------: | ------: |
+| Validate JSON (zod)             |  6.4 ms |   18 ms |  143 ms |
+| Load into SceneGraph            |  5.8 ms |   21 ms |  148 ms |
+| World bounds, cold cache        |  5.2 ms |   22 ms |  169 ms |
+| Move one node (command + index) | 0.11 ms | 0.04 ms | 0.04 ms |
+| Restyle all nodes (one command) | 0.47 ms |  1.9 ms |   16 ms |
+
+Launch gate 8 (`docs/LAUNCH.md`): 10k-node load (validate + load) 291 ms < 500 ms; single move
+0.04 ms < 2 ms. Browser rendering numbers were not re-run; the image-paint path changed (clip +
+`drawImage` instead of pattern transforms), which affects only documents with image fills.
+
 ## Results summary (2026-11-07, headless Chromium, Linux x64, Node 26)
 
 | Metric                                   |      100 |    1,000 |     10,000 |

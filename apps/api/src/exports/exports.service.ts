@@ -1,11 +1,19 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
+import type { Canvas } from '@napi-rs/canvas';
 import { ImageCache } from '@sigma/renderer';
 import type { ImageSource } from '@sigma/renderer';
 import { AssetsService } from '../assets/assets.service';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { DocumentJSON } from '@sigma/document';
 import { SceneGraph } from '@sigma/document';
-import { exportSvg, extractDesignTokens, tokensToCss } from '@sigma/import-export';
+import {
+  buildPdf,
+  exportSvg,
+  extractDesignTokens,
+  rgbaToRgb,
+  tokensToCss,
+} from '@sigma/import-export';
+import { deflateSync } from 'node:zlib';
 import { rasterizeNodes } from '@sigma/renderer';
 import type { NodeId } from '@sigma/shared';
 import type { User } from '../../prisma/generated/client';
@@ -32,7 +40,7 @@ export class ExportsService {
   ) {}
 
   /** Loads images referenced by asset URLs so server-side rendering can draw them. */
-  private async imageCacheFor(graph: SceneGraph, user: User): Promise<ImageCache> {
+  private async imageCacheFor(graph: SceneGraph, user: User | null): Promise<ImageCache> {
     const cache = new ImageCache();
     const srcs = new Set<string>();
     for (const page of graph.pageIds)
@@ -44,7 +52,9 @@ export class ExportsService {
       const m = /\/api\/v1\/assets\/([0-9a-f-]{36})\/content/.exec(src);
       try {
         if (m) {
-          const { data } = await this.assets.content(m[1] as string, user);
+          const { data } = user
+            ? await this.assets.content(m[1] as string, user)
+            : await this.assets.read(m[1] as string);
           cache.set(src, (await loadImage(data)) as unknown as ImageSource);
         } else if (src.startsWith('data:')) {
           cache.set(
@@ -61,23 +71,34 @@ export class ExportsService {
     return cache;
   }
 
-  /** Rasterizes nodes to PNG with asset images resolved. */
-  async rasterize(
+  /** Rasterizes nodes to a canvas with asset images resolved. */
+  private async rasterizeCanvas(
     graph: SceneGraph,
     ids: NodeId[],
-    user: User,
+    user: User | null,
     scale: number,
     padding: number,
-  ): Promise<Buffer> {
+  ): Promise<Canvas> {
     const images = await this.imageCacheFor(graph, user);
-    const canvas = rasterizeNodes(graph, ids, {
+    return rasterizeNodes(graph, ids, {
       scale,
       background: '#ffffff',
       padding,
       images,
       createCanvas: (w: number, h: number) => createCanvas(w, h) as unknown as HTMLCanvasElement,
-    });
-    return (canvas as unknown as { toBuffer(mime: 'image/png'): Buffer }).toBuffer('image/png');
+    }) as unknown as Canvas;
+  }
+
+  /** Rasterizes nodes to PNG with asset images resolved. */
+  async rasterize(
+    graph: SceneGraph,
+    ids: NodeId[],
+    user: User | null,
+    scale: number,
+    padding: number,
+  ): Promise<Buffer> {
+    const canvas = await this.rasterizeCanvas(graph, ids, user, scale, padding);
+    return canvas.toBuffer('image/png');
   }
 
   private async load(
@@ -107,14 +128,78 @@ export class ExportsService {
 
   async svg(user: User, documentId: string, q: ExportQuery): Promise<string> {
     const { graph } = await this.load(user, documentId);
+    return this.svgOf(graph, q);
+  }
+
+  svgOf(graph: SceneGraph, q: ExportQuery): string {
     return exportSvg(graph, this.targets(graph, q), { prolog: true, padding: q.frame ? 0 : 16 });
   }
 
   async png(user: User, documentId: string, q: ExportQuery): Promise<Buffer> {
+    const { graph } = await this.load(user, documentId);
+    return this.pngOf(graph, q, user);
+  }
+
+  private parseScale(q: ExportQuery): number {
     const scale = Number(q.scale ?? 1);
     if (!Number.isFinite(scale) || scale <= 0 || scale > 4)
       throw new BadRequestException('scale must be between 0 and 4');
+    return scale;
+  }
+
+  /** PDF with one page per frame of the page (or the single requested frame), raster at `scale`. */
+  async pdf(user: User, documentId: string, q: ExportQuery): Promise<Buffer> {
     const { graph } = await this.load(user, documentId);
+    return this.pdfOf(graph, q, user, graph.name);
+  }
+
+  async pdfOf(
+    graph: SceneGraph,
+    q: ExportQuery,
+    user: User | null,
+    title: string,
+  ): Promise<Buffer> {
+    const scale = this.parseScale(q);
+    const [target] = this.targets(graph, q);
+    const node = graph.requireNode(target as NodeId);
+    const approvedOnly = q.approved === 'true';
+    const frames =
+      node.type === 'PAGE'
+        ? node.childIds.filter((c) => {
+            const n = graph.requireNode(c);
+            if (!('layout' in n)) return false;
+            if (!approvedOnly) return true;
+            return (n.metadata as { review?: { state?: string } }).review?.state === 'APPROVED';
+          })
+        : [node.id];
+    if (frames.length === 0) throw new NotFoundException('No frames to export');
+    const pages = [];
+    for (const id of frames) {
+      const b = graph.getWorldBounds(id);
+      if (b.width * scale > 8192 || b.height * scale > 8192)
+        throw new BadRequestException('A frame exceeds 8192px at this scale; lower the scale');
+      const canvas = await this.rasterizeCanvas(graph, [id], user, scale, 0);
+      const ctx = canvas.getContext('2d');
+      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      pages.push({
+        width: canvas.width,
+        height: canvas.height,
+        rgb: rgbaToRgb(data),
+        title: graph.requireNode(id).name,
+      });
+    }
+    return Buffer.from(
+      buildPdf(pages, {
+        deflate: (d) => new Uint8Array(deflateSync(d)),
+        pointsPerPixel: 0.75 / scale,
+        title,
+        producer: 'SIGMA',
+      }),
+    );
+  }
+
+  async pngOf(graph: SceneGraph, q: ExportQuery, user: User | null): Promise<Buffer> {
+    const scale = this.parseScale(q);
     const ids = this.targets(graph, q);
     const rects = ids.flatMap((id) => {
       const node = graph.requireNode(id);

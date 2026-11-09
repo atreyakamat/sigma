@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { LoginSchema, RegisterSchema, SlugSchema, CreateDocumentSchema } from '../index';
+import {
+  LoginSchema,
+  PasswordSchema,
+  RegisterSchema,
+  SlugSchema,
+  CreateDocumentSchema,
+} from '../index';
 
 describe('validation schemas', () => {
   it('normalizes emails and enforces password length', () => {
@@ -30,5 +36,14 @@ describe('validation schemas', () => {
         name: 'Doc',
       }).success,
     ).toBe(true);
+  });
+});
+
+describe('password policy', () => {
+  it('rejects very common passwords and ones that merely pad them', () => {
+    for (const bad of ['password123', 'Password1234', 'qwertyuiop', '1234567890', 'iloveyou12'])
+      expect(PasswordSchema.safeParse(bad).success, bad).toBe(false);
+    expect(PasswordSchema.safeParse('Tangerine-Harbour-42').success).toBe(true);
+    expect(PasswordSchema.safeParse('short').success).toBe(false);
   });
 });

@@ -210,7 +210,7 @@ update log by decision). Server-side thumbnails.
   22 integration tests against PostgreSQL; Vite-bundled production build; Docker image that migrates
   on start. ✅ comments, versions, server-side SVG/PNG export, design tokens, frames listing, API tokens,
   presence WebSocket, assets (uploads, signed URLs, S3 or disk), libraries, 2FA, sessions, audit log,
-  metrics, realtime rooms. 38 integration tests. 🔜 share links.
+  metrics, realtime rooms, share links, PDF export. 41 integration tests.
 
 ---
 
@@ -229,8 +229,8 @@ ever needed.
 ## 11. Import and export
 
 ✅ PNG/JPEG/WebP/GIF/SVG image import with magic-byte validation and size cap; PNG export at any
-scale; SVG export; SVG import as vector nodes; JSON document export/import; design tokens. 🔜 PDF
-export, legally-safe interoperability research (later).
+scale; SVG export; SVG import as vector nodes; JSON document export/import; design tokens; PDF
+export (raster, one page per frame). 🔜 vector PDF, legally-safe interoperability research (later).
 
 ---
 
@@ -239,7 +239,8 @@ export, legally-safe interoperability research (later).
 See `docs/SECURITY.md`. Implemented: scrypt hashing, hashed server-side sessions in secure cookies,
 role authorization on every route, login rate limiting, CSRF origin check, strict validation,
 upload sniffing, env validation, no secrets in client code, signed asset URLs, audit log, TOTP 2FA,
-session revocation, metrics, optional HTTPS edge. 🔜 share links, password breach checks.
+session revocation, metrics, optional HTTPS edge, share links, common-password denylist, CSP;
+review recorded in `docs/security-review-2026-11.md`. 🔜 breached-password lookup.
 
 ---
 

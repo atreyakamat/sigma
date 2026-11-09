@@ -81,6 +81,16 @@ full Yjs state (base64) and current `revision`. Participants with `document.writ
 HTTP replacement of the content (restore, CLI, offline flush) rebuilds the room and pushes a new
 `sync`. Shared-state layout and conflict rules: `packages/collab` and ADR-0012.
 
+## Share links and PDF
+
+`POST /documents/:id/share-links` (`{ role: 'VIEWER' | 'COMMENTER', expiresInHours? }`) returns
+the link once, including `token` and `url` (`<PUBLIC_URL>/share/<token>`); listings omit the
+token. `GET /share/:token` returns `{ id, name, revision, updatedAt, role, content }` and the
+export routes under `/share/:token/` render the same document. Tokens are never accepted as a
+bearer credential, so a link can never write. `export.pdf` renders one page per frame of the first
+page (or the given `frame`), raster at `scale` (points = pixels × 0.75), Flate-compressed; with
+`approved=true` only frames in the APPROVED review state are included.
+
 ## Locks, review states and versions
 
 Frames may carry `metadata.lock = { userId, name, until }` and `metadata.review = { state, byId,

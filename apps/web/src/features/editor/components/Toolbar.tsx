@@ -3,6 +3,7 @@ import {
   Command,
   HelpCircle,
   Play,
+  Share2,
   Workflow,
   PenTool,
   Pencil,
@@ -32,6 +33,7 @@ import { useProject, useWorkspace } from '../../../lib/queries';
 import { useActiveTool, useDocumentRevision, useHistoryState } from '../hooks';
 import { useEditorUi } from '../store';
 import { ExportMenu } from './ExportMenu';
+import { ShareDialog } from './ShareDialog';
 
 const SHAPES = [
   { id: 'rectangle', label: 'Rectangle', key: 'R', icon: Square },
@@ -43,7 +45,8 @@ const SHAPES = [
 
 export function Toolbar() {
   const editor = useEditor();
-  const { readOnly } = useEditorContext();
+  const { readOnly, shared = false } = useEditorContext();
+  const [shareOpen, setShareOpen] = useState(false);
   const active = useActiveTool();
   const history = useHistoryState();
   const revision = useDocumentRevision();
@@ -215,16 +218,20 @@ export function Toolbar() {
       <DocumentTitle />
 
       <div className="flex items-center gap-1">
-        <PresenceAvatars users={presenceUsers} connected={presenceConnected} />
-        <span className="mx-1 h-5 w-px bg-ink-700" />
-        <button
-          className="icon-btn"
-          data-active={commentMode}
-          title="Add comment (C)"
-          onClick={() => setCommentMode(!commentMode)}
-        >
-          <MessageSquare size={15} />
-        </button>
+        {!shared && (
+          <>
+            <PresenceAvatars users={presenceUsers} connected={presenceConnected} />
+            <span className="mx-1 h-5 w-px bg-ink-700" />
+            <button
+              className="icon-btn"
+              data-active={commentMode}
+              title="Add comment (C)"
+              onClick={() => setCommentMode(!commentMode)}
+            >
+              <MessageSquare size={15} />
+            </button>
+          </>
+        )}
         <button
           className="icon-btn"
           data-active={prototypeMode}
@@ -233,17 +240,38 @@ export function Toolbar() {
         >
           <Workflow size={15} />
         </button>
-        <button
-          className="icon-btn"
-          title="Preview prototype"
-          data-testid="preview-button"
-          onClick={() => void navigate(`${window.location.pathname.replace(/\/$/, '')}/preview`)}
-        >
-          <Play size={15} />
-        </button>
-        <button className="icon-btn" title="Version history" onClick={() => setVersionsOpen(true)}>
-          <History size={15} />
-        </button>
+        {!shared && (
+          <>
+            <button
+              className="icon-btn"
+              title="Preview prototype"
+              data-testid="preview-button"
+              onClick={() =>
+                void navigate(`${window.location.pathname.replace(/\/$/, '')}/preview`)
+              }
+            >
+              <Play size={15} />
+            </button>
+            <button
+              className="icon-btn"
+              title="Version history"
+              onClick={() => setVersionsOpen(true)}
+            >
+              <History size={15} />
+            </button>
+          </>
+        )}
+        {!readOnly && (
+          <button
+            className="icon-btn"
+            title="Share"
+            data-testid="share-button"
+            onClick={() => setShareOpen(true)}
+          >
+            <Share2 size={15} />
+          </button>
+        )}
+        {shareOpen && <ShareDialog onClose={() => setShareOpen(false)} />}
         <button
           className="icon-btn"
           title="Command palette (⌘K)"
@@ -282,7 +310,7 @@ export function Toolbar() {
 
 function DocumentTitle() {
   const editor = useEditor();
-  const { readOnly, meta } = useEditorContext();
+  const { readOnly, meta, shared = false } = useEditorContext();
   const ws = useWorkspace(meta.workspaceId);
   const project = useProject(meta.projectId);
   const revision = useDocumentRevision();
@@ -296,6 +324,18 @@ function DocumentTitle() {
     error: 'Save failed',
     offline: 'Offline — edits kept locally',
   }[saveStatus];
+  if (shared)
+    return (
+      <div className="flex items-center gap-2 text-[12px]">
+        <span className="font-medium">{editor.graph.name}</span>
+        <span
+          className="rounded bg-accent-500/20 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-300"
+          data-testid="shared-view"
+        >
+          Shared view
+        </span>
+      </div>
+    );
   return (
     <div className="flex items-center gap-1.5 text-[12px]">
       <Link to={`/w/${meta.workspaceId}`} className="text-ink-400 hover:text-ink-200">

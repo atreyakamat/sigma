@@ -10,6 +10,8 @@ export interface EditorContextValue {
   readOnly: boolean;
   role: WorkspaceRole;
   meta: { documentId: string; projectId: string; workspaceId: string };
+  /** Opened through a share link: no account, no presence/comments, read-only, polled for updates. */
+  shared?: boolean;
 }
 
 export const EditorContext = createContext<EditorContextValue | null>(null);

@@ -221,6 +221,49 @@ test.describe.serial('platform: realtime, prototyping, assets, security', () => 
     expect(anon.ok()).toBeTruthy();
   });
 
+  test('share links: a read-only link opens without an account and PDF export renders frames', async ({
+    page,
+    browser,
+  }) => {
+    await asAdmin(page);
+    await page.goto(fileUrl);
+    await page.getByTestId('share-button').click();
+    await page.getByTestId('create-share-link').click();
+    const url = await page.getByTestId('share-link-url').inputValue();
+    expect(url).toMatch(/\/share\/[A-Za-z0-9_-]{20,}$/);
+    await expect(page.getByTestId('share-link-row')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+
+    const anon = await browser.newContext();
+    const viewer = await anon.newPage();
+    await viewer.goto(url);
+    await expect(viewer.getByTestId('shared-view')).toBeVisible();
+    await expect(viewer.locator('aside').first().getByText('Hero card')).toBeVisible();
+    await expect(viewer.getByTestId('share-button')).toHaveCount(0);
+    await expect(viewer.getByTestId('presence-avatars')).toHaveCount(0);
+    const token = url.split('/share/')[1] as string;
+    const png = await viewer.request.get(`${origin}/api/v1/share/${token}/export.png?scale=1`);
+    expect(png.ok()).toBeTruthy();
+    await anon.close();
+
+    const pdf = await page.request.get(
+      `${origin}/api/v1/documents/${documentId}/export.pdf?scale=1`,
+    );
+    expect(pdf.ok()).toBeTruthy();
+    expect(pdf.headers()['content-type']).toBe('application/pdf');
+    const body = (await pdf.body()).toString('latin1');
+    expect(body.startsWith('%PDF-1.4')).toBe(true);
+    expect(body).toMatch(/\/Count [1-9]/);
+
+    // Revoke from the dialog: the link stops working.
+    await page.getByTestId('share-button').click();
+    await page.getByTitle('Revoke').first().click();
+    await expect(page.getByTestId('share-link-row')).toHaveCount(0);
+    const gone = await page.request.get(`${origin}/api/v1/share/${token}`);
+    expect(gone.status()).toBe(404);
+    await page.keyboard.press('Escape');
+  });
+
   test('security: two-factor enrolment, 2FA sign-in, session list and disabling', async ({
     browser,
   }) => {
@@ -254,7 +297,7 @@ test.describe.serial('platform: realtime, prototyping, assets, security', () => 
 
     await page.reload();
     // The realtime test left an earlier session behind, so at least the new sign-in shows up.
-    expect(await page.getByTestId('session-other').count()).toBeGreaterThanOrEqual(1);
+    await expect(page.getByTestId('session-other').first()).toBeVisible();
     await page.getByRole('button', { name: 'Sign out other sessions' }).click();
     await expect(page.getByTestId('session-other')).toHaveCount(0);
     await p2.goto('/settings/security');

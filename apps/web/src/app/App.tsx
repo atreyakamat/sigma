@@ -26,6 +26,7 @@ export function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/share/:token" element={<EditorPage />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/change-password" element={<ChangePasswordPage />} />
               <Route path="/" element={<WorkspacesPage />} />

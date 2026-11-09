@@ -2,6 +2,7 @@ import type { DocumentJSON } from '@sigma/document';
 import type {
   ConflictResponse,
   DocumentDto,
+  SharedDocumentDto,
   DocumentSummaryDto,
   SaveContentResponse,
 } from '@sigma/validation';
@@ -21,6 +22,10 @@ export const documentRepository = {
   },
   get(id: string): Promise<DocumentDto> {
     return http.get(`/documents/${id}`);
+  },
+  /** Anonymous read through a share link token. */
+  getShared(token: string): Promise<SharedDocumentDto> {
+    return http.get(`/share/${encodeURIComponent(token)}`);
   },
   create(projectId: string, name: string, content?: DocumentJSON): Promise<DocumentDto> {
     return http.post(`/projects/${projectId}/documents`, content ? { name, content } : { name });

@@ -12,8 +12,8 @@ const USAGE = `sigma — SIGMA command line
 
 Usage:
   sigma frames <documentId> [--approved]              List frames (id, name, size, review state)
-  sigma export <documentId> <out.svg|out.png> [--frame <id>] [--scale <n>] [--approved]
-  sigma export-all <documentId> <dir> [--format png|svg] [--scale <n>] [--approved]
+  sigma export <documentId> <out.svg|out.png|out.pdf> [--frame <id>] [--scale <n>] [--approved]
+  sigma export-all <documentId> <dir> [--format png|svg|pdf] [--scale <n>] [--approved]
   sigma tokens <documentId> [--css] [> file]          Design tokens as JSON (or CSS)
   sigma checkpoint <documentId> "<label>"             Save a named version
   sigma versions <documentId>                         List versions
@@ -70,10 +70,10 @@ async function main() {
     case 'export': {
       const [doc, out] = args;
       if (!doc || !out) throw new Error(USAGE);
-      const ext = out.endsWith('.png') ? 'png' : 'svg';
+      const ext = out.endsWith('.png') ? 'png' : out.endsWith('.pdf') ? 'pdf' : 'svg';
       const frame = flag('frame');
       const scale = flag('scale', '1');
-      const q = `?scale=${scale}${frame ? `&frame=${frame}` : ''}`;
+      const q = `?scale=${scale}${frame ? `&frame=${frame}` : ''}${approvedQuery()}`;
       const res = await api(`/documents/${doc}/export.${ext}${q}`);
       writeFileSync(out, Buffer.from(await res.arrayBuffer()));
       console.log(`wrote ${out}`);

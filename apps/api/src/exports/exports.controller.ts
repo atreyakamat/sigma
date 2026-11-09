@@ -33,6 +33,19 @@ export class ExportsController {
     res.send(buf);
   }
 
+  @Get('export.pdf')
+  async pdf(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() q: ExportQuery,
+    @Res() res: Response,
+  ): Promise<void> {
+    const buf = await this.exports.pdf(user, id, q);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(buf);
+  }
+
   @Get('tokens.json')
   async tokensJson(
     @CurrentUser() user: User,

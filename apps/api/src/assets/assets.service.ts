@@ -118,6 +118,12 @@ export class AssetsService {
   }
 
   /** Content for a signed-in member, or for anyone holding a valid signature. */
+  /** Internal read without a permission check (share-link exports of a document that already exposes the asset). */
+  async read(id: string): Promise<{ data: Buffer; mimeType: string; filename: string }> {
+    const row = await this.find(id);
+    return this.loadRow(row);
+  }
+
   async content(
     id: string,
     user: User | null,
@@ -137,6 +143,10 @@ export class AssetsService {
       )
         throw new UnauthorizedException('Invalid signature');
     }
+    return this.loadRow(row);
+  }
+
+  private async loadRow(row: Asset): Promise<{ data: Buffer; mimeType: string; filename: string }> {
     const data = await this.storage.get(row.storageKey);
     if (!data) throw new NotFoundException('Asset content missing');
     return { data, mimeType: row.mimeType, filename: row.filename };

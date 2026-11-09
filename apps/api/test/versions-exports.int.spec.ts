@@ -281,3 +281,56 @@ describe('versions, exports, API tokens and frame locks', () => {
     ).toBe(200);
   });
 });
+
+describe('PDF export', () => {
+  it('renders one PDF page per frame and honours ?approved=true', async () => {
+    const app = await createApp();
+    const admin = await adminClient(app);
+    const ws = (await admin.get('/workspaces')).body[0];
+    const project = (await admin.post(`/workspaces/${ws.id}/projects`, { name: 'Pdf' })).body;
+    const created = (await admin.post(`/projects/${project.id}/documents`, { name: 'Deck' })).body;
+    const doc = (await admin.get(`/documents/${created.id}`)).body;
+    const page = doc.content.pages[0];
+    const frame = (name: string, x: number, review?: string) => ({
+      id: `f${x}`.padEnd(21, 'x'),
+      type: 'FRAME',
+      name,
+      transform: { x, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+      size: { width: 40, height: 20 },
+      metadata: review
+        ? { review: { state: review, byId: 'u', byName: 'u', at: new Date().toISOString() } }
+        : {},
+      children: [],
+    });
+    page.children = [frame('A', 0, 'APPROVED'), frame('B', 100)];
+    const saved = await admin.put(`/documents/${created.id}/content`, {
+      content: doc.content,
+      baseRevision: doc.revision,
+    });
+    expect(saved.status).toBe(200);
+    const all = await admin
+      .get(`/documents/${created.id}/export.pdf?scale=1`)
+      .buffer(true)
+      .parse((res, cb) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(all.status).toBe(200);
+    expect(all.headers['content-type']).toBe('application/pdf');
+    const text = (all.body as Buffer).toString('latin1');
+    expect(text.startsWith('%PDF-1.4')).toBe(true);
+    expect(text).toContain('/Count 2');
+    expect(text).toContain('/Filter /FlateDecode');
+    const approved = await admin
+      .get(`/documents/${created.id}/export.pdf?approved=true`)
+      .buffer(true)
+      .parse((res, cb) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    expect((approved.body as Buffer).toString('latin1')).toContain('/Count 1');
+    await app.close();
+  });
+});

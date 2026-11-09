@@ -243,3 +243,22 @@ describe('diffDocuments', () => {
     expect(d3.moved).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('type index', () => {
+  it('tracks node ids per type through insert, remove, reparent and subtree re-insert', () => {
+    const g = SceneGraph.createEmpty();
+    const page = g.pageIds[0]!;
+    const frame = g.insertNode(createNodeProps('FRAME', { name: 'F' }), page);
+    const a = g.insertNode(createNodeProps('RECTANGLE', { name: 'A' }), frame);
+    const b = g.insertNode(createNodeProps('RECTANGLE', { name: 'B' }), page);
+    expect(new Set(g.getNodeIdsOfType('RECTANGLE'))).toEqual(new Set([a, b]));
+    expect(g.getNodeIdsOfType('INSTANCE')).toEqual([]);
+    g.reparentNode(b, frame);
+    expect(g.getNodeIdsOfType('RECTANGLE')).toHaveLength(2);
+    const sub = g.removeNode(frame);
+    expect(g.getNodeIdsOfType('RECTANGLE')).toEqual([]);
+    expect(g.getNodeIdsOfType('FRAME')).toEqual([]);
+    g.insertSubtree(sub);
+    expect(new Set(g.getNodeIdsOfType('RECTANGLE'))).toEqual(new Set([a, b]));
+  });
+});

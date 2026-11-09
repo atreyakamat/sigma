@@ -21,6 +21,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { UsersModule } from './users/users.module';
 import { VersionsModule } from './versions/versions.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
+import { SharingModule } from './sharing/sharing.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     AuthModule,
     UsersModule,
     WorkspacesModule,
+    SharingModule,
     MembershipsModule,
     ProjectsModule,
     FoldersModule,

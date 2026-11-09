@@ -376,3 +376,39 @@ export interface TwoFactorEnableResponse {
 export interface LoginChallengeResponse {
   requiresTwoFactor: true;
 }
+
+/* ---------------- share links (anonymous read access to one document) */
+export const ShareLinkRoleSchema = z.enum(['VIEWER', 'COMMENTER']);
+export type ShareLinkRole = z.infer<typeof ShareLinkRoleSchema>;
+export const CreateShareLinkBody = z
+  .object({
+    role: ShareLinkRoleSchema.default('VIEWER'),
+    /** Hours until the link stops working; omit for no expiry. */
+    expiresInHours: z
+      .number()
+      .int()
+      .min(1)
+      .max(24 * 365)
+      .optional(),
+  })
+  .strict();
+export type CreateShareLinkInput = z.infer<typeof CreateShareLinkBody>;
+export interface ShareLinkDto {
+  id: string;
+  documentId: string;
+  role: ShareLinkRole;
+  expiresAt: string | null;
+  createdAt: string;
+  /** Only present in the create response. */
+  token?: string;
+  url?: string;
+}
+/** What an anonymous visitor receives for a share token. */
+export interface SharedDocumentDto {
+  id: string;
+  name: string;
+  revision: number;
+  updatedAt: string;
+  role: ShareLinkRole;
+  content: DocumentJSON;
+}

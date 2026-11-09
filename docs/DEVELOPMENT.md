@@ -238,3 +238,12 @@ Node types are switched on in several places; add the type to each, in this orde
 - Touch: `packages/engine/src/gestures.ts` (pinch maths) wired in `input.ts`; the editor page
   switches to floating panels below 900 px.
 - Operations: `scripts/backup.sh`, `scripts/restore.sh`, Caddy profile in `docker-compose.yml`.
+
+## Milestone 8 additions
+
+- Share links: `apps/api/src/sharing/*`; the web editor opens `/share/:token` in shared mode
+  (`EditorContextValue.shared`): read-only, no presence or comments, polled every 10 s.
+- PDF: `packages/import-export/src/pdf.ts` (`buildPdf`, `rgbaToRgb`) is runtime-agnostic; the API
+  injects `zlib.deflateSync` and rasterises frames with `@napi-rs/canvas`.
+- Releases: tag `vX.Y.Z` after `pnpm release:bump X.Y.Z`; `.github/workflows/release.yml` publishes
+  images to GHCR and a GitHub release. Procedure and gates: `docs/LAUNCH.md`.

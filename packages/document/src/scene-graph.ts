@@ -60,6 +60,8 @@ export class SceneGraph {
   metadata: Record<string, unknown>;
 
   private nodes = new Map<NodeId, SceneNode>();
+  /** Node ids by type, so passes that only care about one type (instance projection) skip the rest. */
+  private byType = new Map<string, Set<NodeId>>();
   /** Projected (instance) nodes: present in the graph, excluded from serialization. */
   private derived = new Set<NodeId>();
   private _pageIds: NodeId[] = [];
@@ -120,6 +122,22 @@ export class SceneGraph {
     const json: NodeJSON = { ...(props as NodeProps) };
     if (isContainer(node)) json.children = childIds.map((c) => this.nodeToJSONIncludingDerived(c));
     return json;
+  }
+
+  /** Ids of all nodes of one type (document order is not guaranteed). */
+  getNodeIdsOfType(type: string): readonly NodeId[] {
+    return [...(this.byType.get(type) ?? [])];
+  }
+
+  private indexType(type: string, id: NodeId, present: boolean): void {
+    let set = this.byType.get(type);
+    if (!set) {
+      if (!present) return;
+      set = new Set();
+      this.byType.set(type, set);
+    }
+    if (present) set.add(id);
+    else set.delete(id);
   }
 
   /** True for nodes projected from a component master (instance children). */
@@ -311,6 +329,7 @@ export class SceneGraph {
     }
     const node = { ...props, id, parentId, childIds: [] } as SceneNode;
     this.nodes.set(id, node);
+    this.indexType(node.type, id, true);
     if (options.derived) this.derived.add(id);
     this.linkChild(parentId, id, index);
     this.commit({ added: [id], structural: true });
@@ -378,6 +397,7 @@ export class SceneGraph {
     this.unlinkChild(node.parentId, id);
     for (const n of all) {
       this.nodes.delete(n.id);
+      this.indexType(n.type, n.id, false);
       this.derived.delete(n.id);
     }
     this.commit({ removed: all.map((n) => n.id), structural: true });

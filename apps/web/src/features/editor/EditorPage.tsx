@@ -58,7 +58,12 @@ function registerViewOnlyShortcuts(editor: Editor): () => void {
 }
 
 export function EditorPage() {
-  const { documentId } = useParams<{ documentId: string }>();
+  const { documentId: routeDocumentId, token: shareToken } = useParams<{
+    documentId: string;
+    token: string;
+  }>();
+  const [sharedDocumentId, setSharedDocumentId] = useState<string | null>(null);
+  const documentId = shareToken ? sharedDocumentId : routeDocumentId;
   const navigate = useNavigate();
   const [ctx, setCtx] = useState<EditorContextValue | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -76,7 +81,7 @@ export function EditorPage() {
   const revisionRef = useRef(0);
 
   useEffect(() => {
-    if (!documentId) return;
+    if (!routeDocumentId && !shareToken) return;
     let cancelled = false;
     let editor: Editor | null = null;
     let unregister: (() => void) | null = null;
@@ -84,14 +89,34 @@ export function EditorPage() {
     void (async () => {
       let doc: DocumentDto;
       try {
-        doc = await documentRepository.get(documentId);
+        if (shareToken) {
+          const shared = await documentRepository.getShared(shareToken);
+          doc = {
+            id: shared.id,
+            projectId: '',
+            workspaceId: '',
+            name: shared.name,
+            revision: shared.revision,
+            thumbnailUrl: null,
+            nodeCount: 0,
+            createdById: '',
+            createdAt: shared.updatedAt,
+            updatedAt: shared.updatedAt,
+            content: shared.content,
+            role: 'VIEWER',
+          };
+          setSharedDocumentId(shared.id);
+        } else {
+          doc = await documentRepository.get(routeDocumentId as string);
+        }
       } catch (e) {
         if (!cancelled) setLoadError(errorText(e));
         return;
       }
       if (cancelled) return;
+      const documentId = doc.id;
       revisionRef.current = doc.revision;
-      const readOnly = !roleHas(doc.role, 'document.write');
+      const readOnly = shareToken ? true : !roleHas(doc.role, 'document.write');
       editor = new Editor({ document: doc.content });
       const tools = registerDefaultTools(editor);
       if (readOnly) {
@@ -109,7 +134,7 @@ export function EditorPage() {
         return !lock || lock.userId === me || new Date(lock.until).getTime() < Date.now();
       };
       try {
-        const raw = localStorage.getItem(`sigma:pending:${documentId}`);
+        const raw = shareToken ? null : localStorage.getItem(`sigma:pending:${documentId}`);
         if (raw) {
           const pending = JSON.parse(raw) as { content: DocumentJSON; baseRevision: number };
           if (pending.baseRevision === doc.revision) {
@@ -132,6 +157,7 @@ export function EditorPage() {
         readOnly,
         role: doc.role,
         meta: { documentId, projectId: doc.projectId, workspaceId: doc.workspaceId },
+        shared: !!shareToken,
       });
     })();
     return () => {
@@ -140,7 +166,25 @@ export function EditorPage() {
       editor?.dispose();
       setCtx(null);
     };
-  }, [documentId, user?.id]);
+  }, [routeDocumentId, shareToken, user?.id]);
+
+  // Share-link viewers have no socket: poll for new revisions and reload quietly.
+  useEffect(() => {
+    if (!ctx?.shared || !shareToken) return;
+    const timer = setInterval(() => {
+      void documentRepository
+        .getShared(shareToken)
+        .then((shared) => {
+          if (shared.revision === revisionRef.current) return;
+          const vp = ctx.editor.viewport.getState();
+          ctx.editor.loadDocument(shared.content);
+          ctx.editor.viewport.setState(vp);
+          revisionRef.current = shared.revision;
+        })
+        .catch(() => undefined);
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [ctx, shareToken]);
 
   // Autosave with optimistic concurrency; stops on conflict until the page is reloaded.
   useEffect(() => {
@@ -350,22 +394,26 @@ export function EditorPage() {
               </button>
             </div>
           )}
-          <CanvasOverlays
-            readOnly={ctx.readOnly}
-            isDirty={() => dirtyRef.current}
-            onRevision={(revision) => {
-              revisionRef.current = revision;
-              if (useEditorUi.getState().realtime) {
-                dirtyRef.current = false;
-                setSaveStatus('saved');
-              }
-            }}
-            onServerSaved={(by) => {
-              if (useEditorUi.getState().realtime) return; // already in sync through the CRDT room
-              if (dirtyRef.current) setConflict({ kind: 'updated', by });
-              else void reloadFromServer(`${by} saved changes — file updated`);
-            }}
-          />
+          {ctx.shared ? (
+            <SharedOverlays />
+          ) : (
+            <CanvasOverlays
+              readOnly={ctx.readOnly}
+              isDirty={() => dirtyRef.current}
+              onRevision={(revision) => {
+                revisionRef.current = revision;
+                if (useEditorUi.getState().realtime) {
+                  dirtyRef.current = false;
+                  setSaveStatus('saved');
+                }
+              }}
+              onServerSaved={(by) => {
+                if (useEditorUi.getState().realtime) return; // already in sync through the CRDT room
+                if (dirtyRef.current) setConflict({ kind: 'updated', by });
+                else void reloadFromServer(`${by} saved changes — file updated`);
+              }}
+            />
+          )}
         </div>
         <StatusBar />
       </div>
@@ -463,10 +511,14 @@ function Overlays({ onRestored }: { onRestored: () => void }) {
 
 function LeftSidebar() {
   const { leftTab, setLeftTab } = useEditorUi();
+  const shared = useEditorContext().shared ?? false;
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-ink-700 px-2">
-        {(['layers', 'pages', 'components', 'comments', 'history'] as const).map((tab) => (
+        {(shared
+          ? (['layers', 'pages'] as const)
+          : (['layers', 'pages', 'components', 'comments', 'history'] as const)
+        ).map((tab) => (
           <button
             key={tab}
             onClick={() => setLeftTab(tab)}
@@ -531,6 +583,21 @@ function CanvasOverlays({
       <PresenceLayer users={presence.users} />
       {useEditorUi((s) => s.prototypeMode) && <ConnectionsLayer />}
       <CommentsLayer />
+    </div>
+  );
+}
+
+/** Overlays for share-link viewers: prototype arrows only (no presence, no comments). */
+function SharedOverlays() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0"
+      style={{
+        left: useEditorUi.getState().leftOpen ? 248 : 0,
+        right: useEditorUi.getState().rightOpen ? 256 : 0,
+      }}
+    >
+      {useEditorUi((s) => s.prototypeMode) && <ConnectionsLayer />}
     </div>
   );
 }

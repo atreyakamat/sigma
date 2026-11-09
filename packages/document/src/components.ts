@@ -84,32 +84,33 @@ function fingerprint(graph: SceneGraph, id: NodeId): string {
  */
 export function projectInstances(graph: SceneGraph): boolean {
   let changed = false;
-  const visit = (id: NodeId): void => {
+  const instances = graph.getNodeIdsOfType('INSTANCE');
+  if (instances.length === 0) return false;
+  // Outer instances first so nested projections see their parent's projected children.
+  const ordered = [...instances].sort((a, b) => graph.getDepth(a) - graph.getDepth(b));
+  const seen = new Set<NodeId>();
+  const project = (id: NodeId): void => {
+    if (seen.has(id) || !graph.hasNode(id)) return;
+    seen.add(id);
     const node = graph.getNode(id);
-    if (!node) return;
-    if (node.type === 'INSTANCE') {
-      const desired = projectedChildren(graph, id);
-      const current = node.childIds.filter((c) => graph.isDerived(c));
-      const desiredKey = JSON.stringify(desired);
-      const currentKey =
-        '[' +
-        current.map((c) => JSON.stringify(graph.nodeToJSONIncludingDerived(c))).join(',') +
-        ']';
-      if (desiredKey !== currentKey) {
-        graph.batch(() => {
-          for (const c of current) graph.removeNode(c);
-          for (const json of desired)
-            graph.insertSubtreeJSON(json, id, undefined, { derived: true });
-        });
-        changed = true;
-      }
-      // Nested instances inside the projection are themselves instances: recurse into them.
-      for (const c of graph.getChildIds(id)) visit(c);
-      return;
+    if (!node || node.type !== 'INSTANCE') return;
+    const desired = projectedChildren(graph, id);
+    const current = node.childIds.filter((c) => graph.isDerived(c));
+    const desiredKey = JSON.stringify(desired);
+    const currentKey =
+      '[' + current.map((c) => JSON.stringify(graph.nodeToJSONIncludingDerived(c))).join(',') + ']';
+    if (desiredKey !== currentKey) {
+      graph.batch(() => {
+        for (const c of current) graph.removeNode(c);
+        for (const json of desired) graph.insertSubtreeJSON(json, id, undefined, { derived: true });
+      });
+      changed = true;
     }
-    for (const c of [...node.childIds]) visit(c);
+    // Nested instances inside the projection are themselves instances: recurse into them.
+    for (const c of graph.getDescendantIds(id))
+      if (graph.getNode(c)?.type === 'INSTANCE') project(c);
   };
-  for (const page of graph.pageIds) visit(page);
+  for (const id of ordered) project(id);
   void fingerprint;
   return changed;
 }

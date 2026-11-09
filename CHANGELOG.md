@@ -151,6 +151,30 @@ package is at `0.1.0`.
 - Dependencies: `@nestjs/throttler`, `pg`, `dotenv`, `vite` (api build), `@testing-library/*`,
   `jsdom`.
 
+### Milestone 8 — Production readiness (2026-11-09)
+
+#### Added
+
+- Launch definition (`docs/LAUNCH.md`): scope of v0.1.0, out-of-scope list, go/no-go checklist
+  with verification commands, open decisions needing an owner (licence, name, registry, support
+  channel, storage, password length), release procedure and rollback.
+- Share links: `POST/GET /documents/:id/share-links`, `DELETE /share-links/:id`, public
+  `GET /share/:token` (+ `export.svg|png|pdf`); Share dialog in the toolbar (create with access
+  level and expiry, copy, revoke); `/share/:token` opens a read-only "Shared view" without an
+  account, polling for new revisions.
+- PDF export: in-house PDF 1.4 writer (`@sigma/import-export` `buildPdf`), one raster page per
+  frame with Flate compression; `GET /documents/:id/export.pdf?scale=&frame=&approved=`,
+  "Download PDF" in the export menu, `sigma export file.pdf` and `export-all --format pdf`.
+- Release pipeline: `.github/workflows/release.yml` builds `sigma-web` / `sigma-api` images from a
+  `v*` tag, pushes them to GHCR and creates a GitHub release with the compose files;
+  `pnpm release:bump <version>`.
+- Security: common-password denylist in `PasswordSchema`; nginx Content Security Policy and
+  security headers; share-link audit events; `docs/security-review-2026-11.md`.
+- Performance: `SceneGraph.getNodeIdsOfType` index; instance projection visits only instances
+  (single-node move at 10k nodes: 1.1 ms → 0.04 ms). Benchmarks recorded for 2026-11-09.
+- Tests: API 41 integration tests (share links, PDF), import-export 10, validation 3, web 27,
+  document 20; 21 e2e scenarios (share link opened anonymously, PDF export, revocation).
+
 ### Milestones 5–7 — Vector tools, design systems, realtime co-editing, prototyping, hardening (2026-11-08)
 
 #### Added

@@ -28,6 +28,7 @@ export const useWorkspace = (id: string) =>
   useQuery({
     queryKey: keys.workspace(id),
     queryFn: () => http.get<WorkspaceDto>(`/workspaces/${id}`),
+    enabled: !!id,
   });
 export const useMembers = (id: string) =>
   useQuery({
@@ -40,7 +41,11 @@ export const useProjects = (id: string) =>
     queryFn: () => http.get<ProjectDto[]>(`/workspaces/${id}/projects`),
   });
 export const useProject = (id: string) =>
-  useQuery({ queryKey: keys.project(id), queryFn: () => http.get<ProjectDto>(`/projects/${id}`) });
+  useQuery({
+    queryKey: keys.project(id),
+    queryFn: () => http.get<ProjectDto>(`/projects/${id}`),
+    enabled: !!id,
+  });
 export const useDocuments = (projectId: string) =>
   useQuery({
     queryKey: keys.documents(projectId),
