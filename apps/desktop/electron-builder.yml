@@ -3,7 +3,7 @@
 # SIGMA server bundle with its dependencies) before electron-builder runs.
 appId: local.sigma.desktop
 productName: SIGMA
-copyright: Copyright © 2026 SIGMA contributors
+copyright: Copyright (c) 2026 SIGMA contributors
 electronVersion: 45.2.3
 directories:
   app: stage/app
@@ -25,7 +25,7 @@ linux:
   maintainer: SIGMA contributors
   artifactName: SIGMA-${version}-linux-${arch}.${ext}
 win:
-  target: [nsis]
+  target: [nsis, zip]
   artifactName: SIGMA-${version}-windows-${arch}.${ext}
 nsis:
   oneClick: true

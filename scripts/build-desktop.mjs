@@ -81,5 +81,12 @@ for (const key of [
 ])
   if (process.env[key] === '') delete process.env[key];
 const args = process.argv.slice(2).join(' ');
-run(`pnpm dlx electron-builder@26.18.0 --config electron-builder.yml ${args}`, desktop);
+try {
+  run(`pnpm dlx electron-builder@26.18.0 --config electron-builder.yml ${args}`, desktop);
+} catch (e) {
+  // The NSIS installer step can fail on some Windows hosts; still ship the app as a zip.
+  if (process.platform !== 'win32' || args) throw e;
+  console.warn('\nThe Windows installer could not be built; building the zip package instead.');
+  run('pnpm dlx electron-builder@26.18.0 --config electron-builder.yml --win zip', desktop);
+}
 console.log(`\nDone. Output: ${join(desktop, 'release')}`);

@@ -27,7 +27,9 @@ jobs:
           - name: Windows
             os: windows-latest
             exe: apps/desktop/release/win-unpacked/SIGMA.exe
-            artifacts: apps/desktop/release/*.exe
+            artifacts: |
+              apps/desktop/release/*.exe
+              apps/desktop/release/*.zip
           - name: macOS
             os: macos-latest
             exe: apps/desktop/release/mac-arm64/SIGMA.app/Contents/MacOS/SIGMA
