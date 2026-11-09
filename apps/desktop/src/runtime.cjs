@@ -214,7 +214,10 @@ async function startRuntime(options) {
     // them open for its whole life, so waiting on them would never finish.
     const ctl = (args) =>
       new Promise((resolve, reject) => {
-        const child = spawn(pgCtl, args, { windowsHide: true, stdio: 'ignore' });
+        // Output goes to a file (not a pipe, which the server would inherit and hold open).
+        const out = fs.openSync(path.join(options.dataDir, 'pg_ctl.log'), 'a');
+        const child = spawn(pgCtl, args, { windowsHide: true, stdio: ['ignore', out, out] });
+        child.on('close', () => fs.closeSync(out));
         child.on('error', reject);
         child.on('exit', (code) =>
           code === 0
@@ -413,6 +416,17 @@ async function startRuntime(options) {
         fs.rmSync(path.join(pgDir, 'postmaster.pid'), { force: true });
         // PostgreSQL refuses a data folder that others can read; a plain copy may widen it.
         if (process.platform !== 'win32') fs.chmodSync(pgDir, 0o700);
+        else {
+          // When SIGMA runs elevated, pg_ctl starts the server with reduced rights; make sure that
+          // account can use the copied files.
+          const { spawnSync } = require('node:child_process');
+          const who = `${process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\` : ''}${process.env.USERNAME ?? ''}`;
+          if (process.env.USERNAME)
+            spawnSync('icacls', [pgDir, '/grant', `${who}:(OI)(CI)F`, '/T', '/C', '/Q'], {
+              windowsHide: true,
+              stdio: 'ignore',
+            });
+        }
         config = saveConfig(config, { dbPassword, sessionSecret }, secrets);
       } catch (e) {
         // Put the previous data back if the copy failed half way.
@@ -431,6 +445,7 @@ async function startRuntime(options) {
           serverLog = fs
             .readFileSync(path.join(options.dataDir, 'postgres.log'), 'utf8')
             .slice(-1500);
+          serverLog += `\n${fs.readFileSync(path.join(options.dataDir, 'pg_ctl.log'), 'utf8').slice(-800)}`;
         } catch {
           /* no server log */
         }
