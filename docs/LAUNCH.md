@@ -80,9 +80,11 @@ candidate commit.
 
 - **v0.1.0** (2026-11-09): tagged and published, then found to crash-loop the web container on a
   fresh clone (nginx snippet mangled by the formatter). Superseded; marked as pre-release on GitHub.
-- **v0.1.1** (2026-11-09): the fix, verified by cloning the public repository into an empty
-  directory, `docker compose up --build`, and the full e2e suite against it. This is the launch
-  release.
+- **v0.1.1** (2026-11-09): fixed the web container, but the clean-clone test on a non-default
+  port (`WEB_PORT=3100`) then exposed a CSRF/Host-header bug that blocked sign-in. Superseded.
+- **v0.1.2** (2026-11-09): nginx forwards the full `Host`; version reported by `/health`. Verified
+  by cloning the public repository into an empty directory, `docker compose up --build` on port
+  3100, and the full e2e suite (21 scenarios) against it. **This is the launch release.**
 
 ## 6. Rollback
 

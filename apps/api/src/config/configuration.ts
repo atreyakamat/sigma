@@ -1,3 +1,5 @@
+/** Injected by the Vite build from package.json; undefined under vitest/ts-node. */
+declare const __APP_VERSION__: string | undefined;
 /**
  * Typed application configuration, derived from (already validated) environment variables.
  * Access it through `ConfigService<AppConfig, true>`.
@@ -56,7 +58,8 @@ export function configuration(): AppConfig {
     trustProxy: bool('TRUST_PROXY', false),
     maxUploadBytes: Number(process.env['MAX_UPLOAD_MB'] ?? 20) * 1024 * 1024,
     dataDir: process.env['DATA_DIR'] ?? './data',
-    version: process.env['APP_VERSION'] ?? '0.1.0',
+    version:
+      process.env['APP_VERSION'] ?? (typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'),
     bootstrap: {
       email: (process.env['BOOTSTRAP_ADMIN_EMAIL'] ?? 'admin@sigma.local').toLowerCase(),
       name: process.env['BOOTSTRAP_ADMIN_NAME'] ?? 'Administrator',

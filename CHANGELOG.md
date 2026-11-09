@@ -8,6 +8,17 @@ All notable changes to this project are documented here. The format follows
 
 Nothing yet.
 
+## [0.1.2] — 2026-11-09
+
+#### Fixed
+
+- Sign-in failed with "Cross-origin request rejected" whenever the stack was served on a port
+  other than the one in `PUBLIC_URL` (for example `WEB_PORT=3100`): nginx forwarded `Host` without
+  the port, so the CSRF origin check could not match the request's own origin. nginx now forwards
+  `$http_host`. Found by the clean-clone install test on a non-default port.
+- `GET /health` reports the real build version (injected from `package.json` at build time)
+  instead of a hard-coded `0.1.0`.
+
 ## [0.1.1] — 2026-11-09
 
 #### Fixed

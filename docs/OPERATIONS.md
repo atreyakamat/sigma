@@ -7,6 +7,13 @@ proxying `/api`), `api`, `postgres` and `redis`. Uploaded assets live in the `ap
 (`DATA_DIR=/data`), or in an S3-compatible bucket when `S3_BUCKET`, `S3_ENDPOINT`,
 `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` are set.
 
+## Ports and public URL
+
+`WEB_PORT` chooses the published port (default 3000). `PUBLIC_URL` must be the address users type
+into the browser (scheme, host and port) because it is the CORS allow-list entry and the base of
+share-link URLs; requests arriving at the stack's own host and port are always accepted as
+same-origin, so a mismatch only affects links and cross-origin API clients.
+
 ## Installing from published images
 
 Releases publish `ghcr.io/atreyakamat/sigma-web:<version>` and `ghcr.io/atreyakamat/sigma-api:<version>`.
