@@ -89,6 +89,9 @@ candidate commit.
 - **v0.2.0** (2026-11-09): AI assistant with pluggable providers, MCP server and Claude skill,
   document operations API, default port 3387, user-facing README.
 
+- **v0.2.1** (2026-11-10): one-line installers and launchers for non-technical users; macOS/Linux
+  path tested end to end, Windows script not yet run on a Windows machine.
+
 ## 6. Rollback
 
 Images are immutable per tag: `docker compose pull && docker compose up -d` with the previous tag

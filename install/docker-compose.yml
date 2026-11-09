@@ -1,0 +1,77 @@
+# SIGMA — ready-to-run stack using published images (no source code or build needed).
+# Created and started by install.sh / install.ps1; settings live in the .env file next to it.
+name: sigma
+
+services:
+  web:
+    image: ${SIGMA_IMAGE_NAMESPACE:-ghcr.io/atreyakamat}/sigma-web:${SIGMA_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-3387}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    image: ${SIGMA_IMAGE_NAMESPACE:-ghcr.io/atreyakamat}/sigma-api:${SIGMA_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://sigma:${POSTGRES_PASSWORD}@postgres:5432/sigma?schema=public
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: ${PUBLIC_URL:-http://localhost:3387}
+      TRUST_PROXY: 'true'
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_SECRET: ${SESSION_SECRET}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@sigma.local}
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-Administrator}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      DATA_DIR: /data
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20}
+    volumes:
+      - api-data:/data
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/api/v1/health >/dev/null || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sigma
+      POSTGRES_USER: sigma
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sigma -d sigma']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:
+  api-data:

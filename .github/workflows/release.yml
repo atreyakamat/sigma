@@ -71,3 +71,6 @@ jobs:
             docker-compose.yml
             .env.docker.example
             infrastructure/deployment/Caddyfile
+            install/install.sh
+            install/install.ps1
+            install/docker-compose.yml

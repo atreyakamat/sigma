@@ -20,7 +20,8 @@ command.
 
 ## Contents
 
-- [Quick start](#quick-start-5-minutes)
+- [Easiest install](#easiest-install-no-technical-setup)
+- [Quick start from source](#quick-start-from-source-5-minutes)
 - [What you can do](#what-you-can-do)
 - [A short tour](#a-short-tour)
 - [AI: assistant, providers and Claude](#ai-assistant-providers-and-claude)
@@ -31,7 +32,29 @@ command.
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
 
-## Quick start (5 minutes)
+## Easiest install (no technical setup)
+
+Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), open it, then paste
+one line.
+
+**Mac or Linux** (Terminal):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/atreyakamat/sigma/main/install/install.sh | sh
+```
+
+**Windows** (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/atreyakamat/sigma/main/install/install.ps1 | iex
+```
+
+The installer downloads ready-made images, creates secure settings, starts SIGMA, opens it in
+your browser and shows your sign-in details (also saved in `~/sigma/SIGMA-LOGIN.txt`). It leaves
+`start-sigma`, `stop-sigma`, `update-sigma` and `backup-sigma` launchers you can double-click.
+Step-by-step help: [install/README.md](install/README.md).
+
+## Quick start from source (5 minutes)
 
 You need [Docker](https://docs.docker.com/get-docker/) with the Compose plugin. Nothing else.
 

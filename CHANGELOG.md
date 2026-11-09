@@ -8,6 +8,17 @@ All notable changes to this project are documented here. The format follows
 
 Nothing yet.
 
+## [0.2.1] — 2026-11-10
+
+#### Added
+
+- One-line installers for people who do not use git or build tools: `install/install.sh` (macOS,
+  Linux) and `install/install.ps1` (Windows). They check Docker, download published images, create
+  secrets and an administrator password, start SIGMA, open the browser, write `SIGMA-LOGIN.txt`,
+  and leave start / stop / update / backup launchers. Downloads are retried and the installer is
+  safe to run again.
+- `install/docker-compose.yml`: build-free stack on published images; `install/README.md`.
+
 ## [0.2.0] — 2026-11-09
 
 #### Added

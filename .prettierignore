@@ -3,3 +3,4 @@ dist
 pnpm-lock.yaml
 .turbo
 infrastructure/deployment/
+install/docker-compose.yml
