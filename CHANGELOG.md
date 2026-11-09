@@ -10,9 +10,10 @@ Nothing yet.
 
 ## [0.1.0] — 2026-11-09
 
-First release: the self-hosted stack described in `docs/LAUNCH.md`. Licence: MIT. Images are
-published to Docker Hub as `<namespace>/sigma-web` and `<namespace>/sigma-api`. The milestone
-sections below list everything included.
+First release: the self-hosted stack described in `docs/LAUNCH.md`. Licence: MIT. Install by
+cloning the repository and running `docker compose up --build`; images are also published to
+`ghcr.io/atreyakamat/sigma-web` and `ghcr.io/atreyakamat/sigma-api`. The milestone sections
+below list everything included.
 
 ### Milestone 0 — Foundation
 

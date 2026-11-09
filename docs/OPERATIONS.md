@@ -9,8 +9,8 @@ proxying `/api`), `api`, `postgres` and `redis`. Uploaded assets live in the `ap
 
 ## Installing from published images
 
-Releases publish `<namespace>/sigma-web:<version>` and `<namespace>/sigma-api:<version>` to Docker
-Hub. Set `SIGMA_IMAGE_NAMESPACE=<namespace>` and `SIGMA_VERSION=<version>` in `.env.docker`, then
+Releases publish `ghcr.io/atreyakamat/sigma-web:<version>` and `ghcr.io/atreyakamat/sigma-api:<version>`.
+Set `SIGMA_VERSION=<version>` in `.env.docker` (and `SIGMA_IMAGE_NAMESPACE` for another registry), then
 `docker compose --env-file .env.docker pull && docker compose --env-file .env.docker up -d --no-build`.
 Leave them unset to build from source.
 

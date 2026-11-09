@@ -12,3 +12,4 @@ test-results/
 playwright-report/
 tests/benchmarks/results/
 .env.docker
+!.env.docker.example

@@ -56,14 +56,14 @@ candidate commit.
 
 ## 4. Decisions (recorded 2026-11-09)
 
-| ID  | Decision                | Answer                                                                                                                                                     |
-| --- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A   | Licence                 | **MIT** (`LICENSE`, `license` field in every package). Permissive; all dependencies compatible. Can be changed before the first public release, not after. |
-| B   | Product name and domain | **SIGMA** (owner's decision). Domain is per installation (`PUBLIC_HOST`).                                                                                  |
-| C   | Image registry          | **Docker Hub** (owner's decision): `<namespace>/sigma-web`, `<namespace>/sigma-api`; compose reads `SIGMA_IMAGE_NAMESPACE` / `SIGMA_VERSION`.              |
-| D   | Support channel         | **GitHub Issues** of the repository; security reports privately to the maintainers.                                                                        |
-| E   | Default upload storage  | **Local volume** (`api-data`); S3-compatible storage via `S3_*` variables.                                                                                 |
-| F   | Minimum password length | **10** characters plus the common-password denylist.                                                                                                       |
+| ID  | Decision                | Answer                                                                                                                                                                                                                                                                                                                |
+| --- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A   | Licence                 | **MIT** (`LICENSE`, `license` field in every package). Permissive; all dependencies compatible. Can be changed before the first public release, not after.                                                                                                                                                            |
+| B   | Product name and domain | **SIGMA** (owner's decision). Domain is per installation (`PUBLIC_HOST`).                                                                                                                                                                                                                                             |
+| C   | Image registry          | **GitHub Container Registry for now** (`ghcr.io/atreyakamat/sigma-web`, `…/sigma-api`, published by the tag workflow with no secrets). Docker Hub deferred by the owner; the primary install path is cloning the repository and `docker compose up --build`. Compose reads `SIGMA_IMAGE_NAMESPACE` / `SIGMA_VERSION`. |
+| D   | Support channel         | **GitHub Issues** of the repository; security reports privately to the maintainers.                                                                                                                                                                                                                                   |
+| E   | Default upload storage  | **Local volume** (`api-data`); S3-compatible storage via `S3_*` variables.                                                                                                                                                                                                                                            |
+| F   | Minimum password length | **10** characters plus the common-password denylist.                                                                                                                                                                                                                                                                  |
 
 ## 5. Release procedure
 
@@ -71,13 +71,10 @@ candidate commit.
 2. Update `CHANGELOG.md`: move "Unreleased" into a dated `## [x.y.z]` section.
 3. Bump versions: `pnpm release:bump x.y.z` (sets every workspace `package.json`).
 4. Commit `chore(release): vx.y.z`, tag `vx.y.z`, push with `git push --follow-tags`. The release
-   workflow builds the images, pushes them to Docker Hub with the version, `major.minor` and
-   `latest` tags, and attaches `docker-compose.yml`, `.env.docker.example` and the `Caddyfile` to
-   the GitHub release. Repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` must exist.
-
-State for 0.1.0: steps 1–4 are done locally (commit `chore(release): v0.1.0`, tag `v0.1.0`);
-the push, the Docker Hub secrets and the smoke test on a clean host (step 5) remain. 5. Smoke-test the published images on a clean host: install, sign in, create a file, draw, invite a
-second user, verify realtime, export PNG/SVG/PDF, back up. 6. Announce through the channel chosen in Decision D.
+   workflow builds the images, pushes them to GHCR with the version, `major.minor` and `latest`
+   tags, and attaches `docker-compose.yml`, `.env.docker.example` and the `Caddyfile` to the
+   GitHub release. No secrets are required. 5. Smoke-test the published images on a clean host: install, sign in, create a file, draw, invite a
+   second user, verify realtime, export PNG/SVG/PDF, back up. 6. Announce through the channel chosen in Decision D.
 
 ## 6. Rollback
 

@@ -4,7 +4,7 @@
 #   docker compose logs api                           # shows the initial admin password unless BOOTSTRAP_ADMIN_PASSWORD is set
 # Then open http://localhost:${WEB_PORT:-3000}
 #
-# Without building: set SIGMA_IMAGE_NAMESPACE (Docker Hub namespace) and SIGMA_VERSION (e.g. 0.1.0)
+# Without building: set SIGMA_IMAGE_NAMESPACE (default ghcr.io/atreyakamat) and SIGMA_VERSION (e.g. 0.1.0)
 # in .env.docker, then `docker compose --env-file .env.docker pull && docker compose --env-file .env.docker up -d --no-build`.
 #
 # HTTPS: set PUBLIC_HOST (a DNS name pointing at this machine), PUBLIC_URL=https://<host> and
@@ -18,7 +18,7 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    image: ${SIGMA_IMAGE_NAMESPACE:-sigma}/sigma-web:${SIGMA_VERSION:-local}
+    image: ${SIGMA_IMAGE_NAMESPACE:-ghcr.io/atreyakamat}/sigma-web:${SIGMA_VERSION:-local}
     restart: unless-stopped
     ports:
       - '${WEB_PORT:-3000}:80'
@@ -30,7 +30,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    image: ${SIGMA_IMAGE_NAMESPACE:-sigma}/sigma-api:${SIGMA_VERSION:-local}
+    image: ${SIGMA_IMAGE_NAMESPACE:-ghcr.io/atreyakamat}/sigma-api:${SIGMA_VERSION:-local}
     restart: unless-stopped
     env_file:
       - path: .env.docker
