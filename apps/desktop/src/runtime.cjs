@@ -209,20 +209,19 @@ async function startRuntime(options) {
     const binDir = platformBinDir('windows-x64');
     pgCtl = path.join(binDir, 'pg_ctl.exe');
     pgOutput.push(`pg_ctl: ${pgCtl} (exists: ${fs.existsSync(pgCtl)})`);
-    const { execFile } = require('node:child_process');
+    const { spawn } = require('node:child_process');
+    // stdio is ignored on purpose: the server pg_ctl starts would inherit open pipes and keep
+    // them open for its whole life, so waiting on them would never finish.
     const ctl = (args) =>
-      new Promise((resolve, reject) =>
-        execFile(pgCtl, args, { windowsHide: true }, (err, stdout, stderr) => {
-          pgOutput.push(String(stdout), String(stderr));
-          if (err)
-            reject(
-              new Error(
-                `pg_ctl ${args[args.length - 1]} exited with ${err.code ?? err.signal ?? err.message}`,
-              ),
-            );
-          else resolve();
-        }),
-      );
+      new Promise((resolve, reject) => {
+        const child = spawn(pgCtl, args, { windowsHide: true, stdio: 'ignore' });
+        child.on('error', reject);
+        child.on('exit', (code) =>
+          code === 0
+            ? resolve()
+            : reject(new Error(`pg_ctl ${args[args.length - 1]} exited with code ${code}`)),
+        );
+      });
     const serverLog = path.join(options.dataDir, 'postgres.log');
     pg.start = () =>
       ctl([
