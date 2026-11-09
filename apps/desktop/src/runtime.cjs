@@ -248,7 +248,27 @@ async function startRuntime(options) {
     }
     return explain('Starting the database')(e);
   });
-  if (firstRun) await pg.createDatabase('sigma');
+  if (firstRun) {
+    // Created over a plain connection, so it works however the server was started.
+    const { createRequire } = require('node:module');
+    const { Client } = createRequire(require.resolve('embedded-postgres'))('pg');
+    const client = new Client({
+      host: '127.0.0.1',
+      port: pgPort,
+      user: 'sigma',
+      password: config.dbPassword,
+      database: 'postgres',
+    });
+    try {
+      await client.connect();
+      await client.query('CREATE DATABASE sigma');
+    } catch (e) {
+      await pg.stop().catch(() => undefined);
+      explain('Creating the database')(e);
+    } finally {
+      await client.end().catch(() => undefined);
+    }
+  }
   const databaseUrl = `postgresql://sigma:${encodeURIComponent(config.dbPassword)}@127.0.0.1:${pgPort}/sigma?schema=public`;
 
   // The API bundle and its dependencies live outside this package (workspace in development,
