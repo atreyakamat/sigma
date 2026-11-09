@@ -22,9 +22,10 @@ Nothing yet.
 - README: desktop first-launch screenshot; troubleshooting entries for a forgotten password and a
   clean start.
 
-#### Removed
+#### Changed
 
-- The v0.3.0 GitHub release and tag (it had no installers and contained a test data folder).
+- The v0.3.0 GitHub release is marked as superseded (it had no installers and its tag contains a
+  test data folder committed by mistake). It could not be deleted from this environment.
 
 ## [0.3.1] — 2026-11-09
 
