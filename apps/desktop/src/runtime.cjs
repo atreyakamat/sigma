@@ -6,6 +6,17 @@ const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 
+/**
+ * Folder with the bundled PostgreSQL executables for a platform package. The package is a
+ * dependency of embedded-postgres, so it is resolved from there rather than from this file.
+ */
+function platformBinDir(platform) {
+  const { createRequire } = require('node:module');
+  const fromLibrary = createRequire(require.resolve('embedded-postgres'));
+  const entry = fromLibrary.resolve(`@embedded-postgres/${platform}`);
+  return path.resolve(path.dirname(entry), '..', 'native', 'bin');
+}
+
 /** Picks a free TCP port on this machine. */
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -195,8 +206,8 @@ async function startRuntime(options) {
   // On Windows the server is started through pg_ctl, which drops administrator rights the way
   // PostgreSQL requires (postgres.exe refuses to run elevated). Elsewhere the library starts it.
   if (process.platform === 'win32') {
-    const bin = await import('@embedded-postgres/windows-x64');
-    pgCtl = fs.existsSync(`${bin.pg_ctl}.exe`) ? `${bin.pg_ctl}.exe` : bin.pg_ctl;
+    const binDir = platformBinDir('windows-x64');
+    pgCtl = path.join(binDir, 'pg_ctl.exe');
     pgOutput.push(`pg_ctl: ${pgCtl} (exists: ${fs.existsSync(pgCtl)})`);
     const { execFile } = require('node:child_process');
     const ctl = (args) =>
