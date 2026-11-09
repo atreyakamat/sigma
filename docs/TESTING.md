@@ -16,26 +16,28 @@ test boots a real Nest application with supertest.
 
 Counts from `pnpm test` at the time of writing:
 
-| Package                | Files                                                                  | Tests | Covers                                                                                                                                               |
-| ---------------------- | ---------------------------------------------------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@sigma/geometry`      | `geometry.test.ts`, `path.test.ts`                                     |    27 | vec2/mat2d/rect, hit tests, Bézier, spatial index, SVG path parse/serialise, booleans, simplify/smooth                                               |
-| `@sigma/document`      | `scene-graph.test.ts`, `components.test.ts`, `layout.test.ts`, `diff`  |    19 | hierarchy ops, batching, JSON round-trip, schema, instance projection, auto layout solver, constraints, document diff                                |
-| `@sigma/history`       | `history.test.ts`                                                      |    12 | execute/undo of every command, merge window, nested transactions, `attach`, limit, events                                                            |
-| `@sigma/renderer`      | `viewport.test.ts`                                                     |     7 | world/screen conversion, anchored zoom, clamping, `fitRect`, text layout fallback                                                                    |
-| `@sigma/engine`        | `engine`, `components`, `layout`, `prototype`, `gestures` tests        |    38 | headless editor, hit testing, operations, shortcuts, component ops and override routing, relayout glue, prototype runtime, pinch gestures            |
-| `@sigma/tools`         | `tools.test.ts`, `vector-tools.test.ts`                                |    24 | select/shape/text/image/hand tools, pen, pencil, vector edit                                                                                         |
-| `@sigma/import-export` | `export.test.ts`, `svg-import.test.ts`                                 |     7 | SVG export, document round-trip, magic bytes, SVG import to nodes, design tokens                                                                     |
-| `@sigma/collab`        | `collab.test.ts`                                                       |     8 | two bound graphs converge (inserts, updates, reparent, reorder, remove, meta), concurrent inserts, delete-vs-edit, derived exclusion, rebuild, reset |
-| `@sigma/validation`    | `validation.test.ts`                                                   |     2 | normalisation and schemas                                                                                                                            |
-| `@sigma/web`           | `commands`, `onboarding`, `i18n`, `realtime` tests                     |    25 | palette registry, onboarding checklist, dictionaries/locale persistence, realtime session through an in-memory relay                                 |
-| `@sigma/api`           | `health.controller.spec.ts` (unit); `test/*.int.spec.ts` (integration) |  2+38 | HTTP health; auth, users, RBAC, documents, rate limit, versions/exports, comments/presence, libraries, assets/2FA/audit, thumbnails, realtime        |
+| Package                | Files                                                                  | Tests | Covers                                                                                                                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@sigma/geometry`      | `geometry.test.ts`, `path.test.ts`                                     |    27 | vectors, matrices, hit tests, Bézier, spatial index, SVG paths, booleans                                                                                                                 |
+| `@sigma/document`      | `scene-graph`, `components`, `layout`, `diff`, `ops` tests             |    26 | hierarchy, type index, schema, instance projection, auto layout, document diff, edit operations and outline                                                                              |
+| `@sigma/history`       | `history.test.ts`                                                      |    12 | commands, merge window, nested transactions, limits                                                                                                                                      |
+| `@sigma/renderer`      | `viewport.test.ts`                                                     |     7 | world/screen conversion, zoom, text layout fallback                                                                                                                                      |
+| `@sigma/engine`        | `engine`, `components`, `layout`, `prototype`, `gestures` tests        |    38 | editor operations, shortcuts, components, relayout, prototype runtime, pinch gestures                                                                                                    |
+| `@sigma/tools`         | `tools.test.ts`, `vector-tools.test.ts`                                |    24 | select, shapes, text, image, pen, pencil, vector edit                                                                                                                                    |
+| `@sigma/import-export` | `export`, `svg-import`, `pdf` tests                                    |    10 | SVG export/import, document files, design tokens, PDF writer                                                                                                                             |
+| `@sigma/collab`        | `collab.test.ts`                                                       |     8 | two bound graphs converge, concurrent inserts, delete-vs-edit, reset                                                                                                                     |
+| `@sigma/validation`    | `validation.test.ts`                                                   |     3 | schemas, password policy                                                                                                                                                                 |
+| `@sigma/mcp`           | `server.test.mjs`                                                      |     4 | MCP tool listing and calls through the SDK's in-memory transport                                                                                                                         |
+| `@sigma/web`           | `commands`, `onboarding`, `i18n`, `realtime`, `export-urls` tests      |    27 | palette, onboarding, dictionaries, realtime session, export URLs                                                                                                                         |
+| `@sigma/desktop`       | `runtime.test.mjs`; `smoke.app.spec.ts` (Electron, `pnpm test:app`)    |   7+1 | bundled PostgreSQL + server in one process, setup, restart, sharing, backup, reset, restore; real-window smoke test                                                                      |
+| `@sigma/api`           | `health.controller.spec.ts` (unit); `test/*.int.spec.ts` (integration) |  2+53 | auth, RBAC, documents, versions, exports, comments, presence, libraries, assets, 2FA, audit, realtime, share links, PDF, ops, AI providers and assistant, desktop mode, migration runner |
 
 Integration tests need PostgreSQL (`pnpm --filter @sigma/api test:integration`); each file truncates
 the database first and starts a Nest application on a random port.
 
 ## End-to-end tests
 
-Three serial Playwright suites run against the Docker stack on `http://localhost:3387`
+Three serial Playwright suites (22 scenarios) run against the Docker stack on `http://localhost:3387`
 (`E2E_BASE_URL` to override; the admin password is read from `docker compose logs api`, from
 `E2E_ADMIN_PASSWORD`, or is the one a previous run set):
 

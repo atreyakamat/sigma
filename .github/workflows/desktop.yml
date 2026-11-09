@@ -34,6 +34,10 @@ jobs:
             os: macos-latest
             exe: apps/desktop/release/mac-arm64/SIGMA.app/Contents/MacOS/SIGMA
             artifacts: apps/desktop/release/*.dmg
+          - name: macOS Intel
+            os: macos-13
+            exe: apps/desktop/release/mac/SIGMA.app/Contents/MacOS/SIGMA
+            artifacts: apps/desktop/release/*.dmg
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
