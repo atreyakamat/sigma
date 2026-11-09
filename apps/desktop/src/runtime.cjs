@@ -411,6 +411,8 @@ async function startRuntime(options) {
         fs.cpSync(srcPg, pgDir, { recursive: true });
         fs.cpSync(srcAssets, assetsDir, { recursive: true });
         fs.rmSync(path.join(pgDir, 'postmaster.pid'), { force: true });
+        // PostgreSQL refuses a data folder that others can read; a plain copy may widen it.
+        if (process.platform !== 'win32') fs.chmodSync(pgDir, 0o700);
         config = saveConfig(config, { dbPassword, sessionSecret }, secrets);
       } catch (e) {
         // Put the previous data back if the copy failed half way.
@@ -423,7 +425,21 @@ async function startRuntime(options) {
         throw e;
       }
       lastPreRestoreDir = aside;
-      await pg.start();
+      await pg.start().catch((e) => {
+        let serverLog = '';
+        try {
+          serverLog = fs
+            .readFileSync(path.join(options.dataDir, 'postgres.log'), 'utf8')
+            .slice(-1500);
+        } catch {
+          /* no server log */
+        }
+        const detail =
+          e && typeof e === 'object' && 'message' in e ? e.message : 'the database did not start';
+        throw new Error(`Restore: ${detail}\n${pgOutput.slice(-10).join('\n')}\n${serverLog}`, {
+          cause: e,
+        });
+      });
       databaseUrl = `postgresql://sigma:${encodeURIComponent(config.dbPassword)}@127.0.0.1:${pgPort}/sigma?schema=public`;
       await api.applyMigrations(databaseUrl, path.join(options.apiDir, 'prisma', 'migrations'));
       await startServer();
