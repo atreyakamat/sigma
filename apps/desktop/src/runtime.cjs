@@ -162,6 +162,7 @@ async function startRuntime(options) {
   const pgPort = await freePort();
   // The database's own output, kept so a startup failure can say why.
   const pgOutput = [];
+  let pgCtl = null;
   const explain = (step) => (e) => {
     throw new Error(
       `${step} failed: ${e instanceof Error ? e.message : (e ?? 'no error given')}\n${pgOutput.slice(-15).join('\n')}`,
