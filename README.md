@@ -1,22 +1,79 @@
 <div align="center">
 
-<img src="apps/web/public/favicon.svg" width="72" alt="SIGMA logo" />
+<img src="brand/banner.svg" alt="SIGMA: design without limits. Own every pixel." width="100%" />
 
-# SIGMA
-
-**A self-hosted, collaborative design platform with its own canvas engine.**
-
-Design screens, build components, prototype flows, hand off to developers, and let an AI
-assistant or Claude build alongside you. Everything runs on your own machine or server with one
-command.
+<br/>
 
 [![CI](https://github.com/atreyakamat/sigma/actions/workflows/ci.yml/badge.svg)](https://github.com/atreyakamat/sigma/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/atreyakamat/sigma)](https://github.com/atreyakamat/sigma/releases)
+[![Release](https://img.shields.io/github/v/release/atreyakamat/sigma?color=8b7cff)](https://github.com/atreyakamat/sigma/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/atreyakamat/sigma/total?color=3ddc97)](https://github.com/atreyakamat/sigma/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Self-hosted](https://img.shields.io/badge/self--hosted-yes-6d5dfc)
+![Realtime](https://img.shields.io/badge/realtime-CRDT-ff7a59)
+
+**[⬇ Download](https://github.com/atreyakamat/sigma/releases/latest)** ·
+**[Quick start](#desktop-app-no-docker-no-setup)** ·
+**[AI & Claude](#ai-assistant-providers-and-claude)** ·
+**[Docs](#documentation)** ·
+**[Brand](brand/BRAND.md)**
 
 ![The SIGMA editor with two phone screens, the layers panel and the inspector](docs/images/editor.png)
 
 </div>
+
+> A design tool you install like an app. Double-click, make an account, start drawing.
+> Invite your team on your network or run it on a server. **Your files never leave your machine.**
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 🖥️ Yours
+
+Desktop app or one Docker command. MIT licensed. No telemetry, no per-seat bill.
+
+</td>
+<td width="33%" valign="top">
+
+### ⚡ Together
+
+Realtime co-editing, live cursors, comments on layers, versions you can roll back.
+
+</td>
+<td width="33%" valign="top">
+
+### 🤖 Smart
+
+An assistant that edits the file for you, plus an MCP server so Claude can build screens directly.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🧩 Systems
+
+Components, variants, auto layout, constraints, shared libraries, design tokens.
+
+</td>
+<td valign="top">
+
+### 🎬 Prototype
+
+Interactions, transitions and a preview player. Share read-only links without accounts.
+
+</td>
+<td valign="top">
+
+### 🛡️ Safe
+
+Roles, two-factor sign-in, audit log, backups, restore. Custom canvas engine, no black boxes.
+
+</td>
+</tr>
+</table>
+
+<div align="center"><sub>Built by <a href="https://atreyakamat.dev">atreyakamat.dev</a></sub></div>
 
 ## Contents
 
