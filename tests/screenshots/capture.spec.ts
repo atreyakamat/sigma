@@ -1,7 +1,8 @@
 import { test } from '@playwright/test';
 import { ADMIN_EMAIL } from '../e2e/global-setup';
 
-const OUT = 'docs/images';
+const OUT = process.env.SIGMA_SCREENSHOT_OUT ?? 'docs/images';
+const SCALE = Number(process.env.SIGMA_SCREENSHOT_SCALE ?? 1);
 
 /** A small but realistic file: two phone screens built through the operations API. */
 const DESIGN = [
@@ -380,7 +381,7 @@ const DESIGN = [
 
 test('capture README screenshots', async ({ page, browser }) => {
   const anon = await (
-    await browser.newContext({ viewport: { width: 1440, height: 900 } })
+    await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: SCALE })
   ).newPage();
   await anon.goto('/login');
   await anon.getByLabel('Email').waitFor();
