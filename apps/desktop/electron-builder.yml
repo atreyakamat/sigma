@@ -20,11 +20,13 @@ extraResources:
   - from: ../web/dist
     to: web
 linux:
+  icon: build/icon.png
   target: [AppImage, deb]
   category: Graphics
   maintainer: SIGMA contributors
   artifactName: SIGMA-${version}-linux-${arch}.${ext}
 win:
+  icon: build/icon.ico
   target: [nsis, zip]
   artifactName: SIGMA-${version}-windows-${arch}.${ext}
 nsis:
@@ -32,6 +34,7 @@ nsis:
   perMachine: false
   createDesktopShortcut: true
 mac:
+  icon: build/icon.icns
   target: [dmg]
   category: public.app-category.graphics-design
   artifactName: SIGMA-${version}-mac-${arch}.${ext}
