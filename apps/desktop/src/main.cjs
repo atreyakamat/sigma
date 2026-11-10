@@ -195,6 +195,7 @@ function createWindow() {
     backgroundColor: '#16161a',
     title: 'SIGMA',
     icon: [path.join(__dirname, '..', 'build', 'icon.png')].find((f) => fs.existsSync(f)),
+    icon: [path.join(__dirname, '..', 'build', 'icon.png')].find((f) => fs.existsSync(f)),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

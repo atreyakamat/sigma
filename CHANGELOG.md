@@ -6,7 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-Nothing yet.
+- The SIGMA logo is also set as the desktop window icon (Linux taskbar); installers from v0.3.4
+  carry the icon on the installed app but the window icon ships in the next release.
+
+## [0.3.4] — 2026-11-10
+
+#### Added
+
+- The SIGMA logo is now the application icon of the installers on Windows (`.ico`), macOS
+  (`.icns`) and Linux (`.png`); previously the default Electron icon was shown.
+- `scripts/make-icons.mjs` renders every brand PNG, the Windows and macOS icon files and a
+  1200 × 630 social-preview image from the SVG sources in `brand/` (output in `brand/png/`).
 
 ## [0.3.3] — 2026-11-09
 
