@@ -2,7 +2,9 @@
 
 Static site (no build step): `index.html` + `assets/`. Dark UI with animated editor preview,
 scroll reveals, tabbed product tour, OS-aware download button and copy-to-clipboard install commands.
-Respects `prefers-reduced-motion`.
+Interactive: 3D hover tilt with glare, numbered hotspot pins with tooltips, a full-size viewer
+(zoom and pan, ← → keys, Esc), and a hero cursor that follows the visitor. Respects
+`prefers-reduced-motion` and touch devices.
 
 ## Host it
 
@@ -29,7 +31,9 @@ If you host on your own domain, update the three absolute URLs in `index.html` (
 
 ## Maintenance
 
-- Screenshots in `assets/` are copied from `docs/images/` on `main` (regenerate with `pnpm screenshots`).
+- Screenshots in `assets/*.webp` are 2880 × 1800 (2×) captures. Regenerate from a running stack with
+  `SIGMA_SCREENSHOT_SCALE=2 SIGMA_SCREENSHOT_OUT=/some/dir pnpm screenshots` (on `main`), then convert
+  to WebP (quality 90) and update the hotspot coordinates in the `shots` array in `index.html`.
 - Download buttons link to `releases/latest`, so they never go stale.
 - Brand rules: `brand/BRAND.md` on `main`.
 

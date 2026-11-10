@@ -10,6 +10,7 @@
 <meta property="og:description" content="A design tool you install like an app. Realtime, AI-ready, self-hosted, open source." />
 <meta property="og:type" content="website" />
 <meta property="og:image" content="https://atreyakamat.github.io/sigma/assets/og.png" />
+<link rel="preload" as="image" href="assets/editor.webp" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta property="og:url" content="https://atreyakamat.github.io/sigma/" />
@@ -159,6 +160,34 @@ h2{font-size:clamp(32px,5vw,56px);letter-spacing:-.03em;line-height:1.08;margin:
 .shot{border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.12);box-shadow:0 40px 100px -30px rgba(109,93,252,.5);background:var(--ink)}
 .shot img{width:100%;transition:opacity .35s}
 .cap{margin-top:14px;color:var(--dim);font-size:15px;min-height:48px}
+.hintline{font-size:13px;color:#6f6aa5;margin-top:4px}
+.shotwrap{perspective:1400px}
+.shot{position:relative}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.tilt{transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .18s ease-out,box-shadow .3s;transform-style:preserve-3d;will-change:transform}
+.tilt:hover{box-shadow:0 50px 120px -30px rgba(139,124,255,.65)}
+.glare{position:absolute;inset:0;pointer-events:none;background:radial-gradient(500px circle at var(--gx,50%) var(--gy,0%),rgba(255,255,255,.14),transparent 45%);opacity:0;transition:opacity .25s}
+.tilt:hover .glare{opacity:1}
+.zoomhint{position:absolute;right:14px;bottom:14px;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(11,11,16,.75);backdrop-filter:blur(8px);color:var(--mist);font:600 13px var(--font);cursor:pointer;opacity:0;transition:opacity .2s,transform .2s}
+.shot:hover .zoomhint,.zoomhint:focus-visible{opacity:1}
+.zoomhint:hover{transform:scale(1.05);background:rgba(139,124,255,.8)}
+.pin{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:0;cursor:pointer;background:var(--violet);color:#10101a;font:800 12px var(--font);box-shadow:0 0 0 0 rgba(139,124,255,.7);animation:pinPing 2.4s infinite;z-index:3}
+.pin:hover,.pin[aria-expanded=true]{background:var(--coral);animation:none;transform:scale(1.15)}
+@keyframes pinPing{70%{box-shadow:0 0 0 14px rgba(139,124,255,0)}100%{box-shadow:0 0 0 0 rgba(139,124,255,0)}}
+.tip{position:absolute;z-index:4;width:230px;padding:12px 14px;border-radius:12px;background:rgba(18,18,26,.96);border:1px solid rgba(139,124,255,.45);box-shadow:0 20px 50px rgba(0,0,0,.5);font-size:13px;color:var(--dim);transform:translate(-50%,16px);pointer-events:none}
+.tip b{display:block;color:var(--mist);font-size:14px;margin-bottom:3px}
+.lb{position:fixed;inset:0;z-index:100;background:rgba(6,6,10,.94);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;flex-direction:column}
+.lb.open{display:flex}
+.lb .stage2{position:relative;width:min(96vw,1500px);height:min(82vh,940px);overflow:hidden;border-radius:14px;border:1px solid rgba(255,255,255,.14);cursor:zoom-in;background:#0b0b10}
+.lb .stage2.zoomed{cursor:grab}
+.lb .stage2 img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100%;max-height:100%;transition:none;user-select:none;-webkit-user-drag:none}
+.lb .stage2.zoomed img{max-width:none;max-height:none;width:2880px;height:1800px;left:0;top:0;transform:translate(var(--tx,0px),var(--ty,0px))}
+.lb .lbbar{display:flex;gap:12px;align-items:center;margin-top:14px;color:var(--dim);font-size:14px}
+.lb .lbbar button{border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--mist);border-radius:10px;padding:8px 14px;cursor:pointer;font:600 14px var(--font)}
+.lb .lbbar button:hover{background:rgba(255,255,255,.14)}
+#myCursor.mine{animation:none!important;transition:left .08s linear,top .08s linear}
+#myCursor.mine span::after{content:" (you)"}
+@media (hover:none){.tilt{transform:none!important}.zoomhint{opacity:1}}
 
 /* install */
 .cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:46px}
@@ -243,7 +272,7 @@ footer a:hover{color:var(--mist)}
           <div class="layer"><s></s>Primary button</div>
           <div class="layer new"><s class="c"></s>Status dot</div>
         </div>
-        <div class="canvas">
+        <div class="canvas" id="heroCanvas">
           <div class="frame">
             <div class="t" style="left:8%;top:9%">Good morning</div>
             <div class="t s" style="left:8%;top:17%">Here is what is happening today</div>
@@ -252,7 +281,7 @@ footer a:hover{color:var(--mist)}
             <div class="sel"><i></i><i></i><i></i><i></i></div>
           </div>
           <div class="frame2"><div class="avatar"></div><div class="amt">₹ 2,500</div><div class="btn2"></div></div>
-          <div class="cur a"><svg viewBox="0 0 24 24" fill="#ff7a59"><path d="M3 2l17 9-7 2-3 7z"/></svg><span style="background:#ff7a59">Asha</span></div>
+          <div class="cur a" id="myCursor"><svg viewBox="0 0 24 24" fill="#ff7a59"><path d="M3 2l17 9-7 2-3 7z"/></svg><span style="background:#ff7a59">Asha</span></div>
           <div class="cur r"><svg viewBox="0 0 24 24" fill="#8b7cff"><path d="M3 2l17 9-7 2-3 7z"/></svg><span style="background:#8b7cff">Rohan</span></div>
           <div class="chat"><small>✦ Assistant · beta</small><div class="you">add a teal circle named Status dot</div><div class="bot">Added Status dot to the page.</div></div>
         </div>
@@ -286,8 +315,16 @@ footer a:hover{color:var(--mist)}
   <span class="eyebrow">Product tour</span>
   <h2 class="rv">Real screenshots. No mock-ups.</h2>
   <div class="tabs" role="tablist" id="tabs"></div>
-  <div class="shot rv"><img id="shot" src="assets/editor.png" alt="" width="1440" height="900" loading="lazy" /></div>
+  <div class="shotwrap rv">
+    <div class="shot tilt" id="shotbox">
+      <img id="shot" src="assets/editor.webp" alt="" width="2880" height="1800" decoding="async" />
+      <div class="glare"></div>
+      <div id="pins"></div>
+      <button class="zoomhint" id="openlb" type="button" aria-label="Open full size">⤢ Full size</button>
+    </div>
+  </div>
   <p class="cap" id="cap"></p>
+  <p class="hintline">Hover to tilt · click the pins · open full size to zoom and use ← → keys</p>
 </section>
 
 <section id="ai" class="wrap">
@@ -308,7 +345,7 @@ footer a:hover{color:var(--mist)}
   --env SIGMA_URL=http://localhost:3387 \
   --env SIGMA_TOKEN=sgm_your_token \
   -- node packages/mcp/bin/sigma-mcp.mjs<button class="copy" data-copy="#mcp">Copy</button></div>
-      <div class="shot" style="margin-top:16px"><img src="assets/assistant.png" alt="The AI assistant adding a layer from a plain-language request" loading="lazy" width="1440" height="900" /></div>
+      <div class="shot tilt" style="margin-top:16px"><img src="assets/assistant.webp" alt="The AI assistant adding a layer from a plain-language request" loading="lazy" decoding="async" width="2880" height="1800" /><div class="glare"></div></div>
     </div>
   </div>
 </section>
@@ -365,24 +402,62 @@ docker compose --env-file .env.docker up -d --build<button class="copy" data-cop
   // tile glow follows pointer
   document.querySelectorAll(".tile").forEach(function(t){t.addEventListener("pointermove",function(e){var r=t.getBoundingClientRect();t.style.setProperty("--mx",(e.clientX-r.left)+"px");t.style.setProperty("--my",(e.clientY-r.top)+"px")})});
 
-  // tour tabs
+  // tour: tabs, hotspot pins, tilt, lightbox
   var shots=[
-    ["Editor","assets/editor.png","Layers, canvas and inspector. Vector tools, components, auto layout and constraints."],
-    ["Assistant","assets/assistant.png","Describe a change in plain language; the assistant edits the file and everyone sees it."],
-    ["Share","assets/share.png","Read-only links that open without an account. Set an expiry, revoke any time."],
-    ["Prototype","assets/preview.png","Click through your screens in the preview player with transitions and overlays."],
-    ["Projects","assets/project.png","Workspaces and projects with live thumbnails."],
-    ["AI providers","assets/ai-providers.png","Connect Claude, OpenAI, a local model or the built-in demo. Keys stored encrypted."],
-    ["Desktop","assets/desktop-setup.png","First launch of the desktop app: create your account and start designing."]
+    {n:"Editor",f:"assets/editor.webp",c:"Layers, canvas and inspector. Vector tools, components, auto layout and constraints.",p:[[9,24,"Layers","Every layer, nested and searchable. Drag to reorder or rename."],[50,46,"Infinite canvas","Frames, vectors and text on a custom Canvas 2D engine."],[91,30,"Inspector","Position, fill, strokes, constraints and prototype links."],[78,3,"Toolbar","Share, version history, command palette and the AI assistant."]]},
+    {n:"Assistant",f:"assets/assistant.webp",c:"Describe a change in plain language; the assistant edits the file and everyone sees it.",p:[[8,10,"Pick a model","Claude, OpenAI, a local model or the demo provider."],[9,30,"Plain language","\u201cAdd a teal circle named Status dot.\u201d Done."],[30,21,"Live result","The new layer lands on the canvas for everyone at once."]]},
+    {n:"Share",f:"assets/share.webp",c:"Read-only links that open without an account. Set an expiry, revoke any time.",p:[[50,32,"Create a link","Choose access and expiry, then copy."],[50,60,"Active links","See every link and revoke it with one click."]]},
+    {n:"Prototype",f:"assets/preview.webp",c:"Click through your screens in the preview player with transitions and overlays.",p:[[50,50,"Preview player","Hotspots, overlays and transitions run exactly as designed."]]},
+    {n:"Projects",f:"assets/project.webp",c:"Workspaces and projects with live thumbnails.",p:[[30,35,"Live thumbnails","Every file shows its current state."]]},
+    {n:"AI providers",f:"assets/ai-providers.webp",c:"Connect Claude, OpenAI, a local model or the built-in demo. Keys stored encrypted.",p:[[50,30,"Your models","Add several providers and pick a default."]]}
   ];
-  var tabs=document.getElementById("tabs"),img=document.getElementById("shot"),cap=document.getElementById("cap");
+  var tabs=document.getElementById("tabs"),img=document.getElementById("shot"),cap=document.getElementById("cap"),pins=document.getElementById("pins"),box=document.getElementById("shotbox"),cur=0;
   function pick(i){
+    cur=i;
     Array.prototype.forEach.call(tabs.children,function(b,j){b.setAttribute("aria-selected",j===i)});
-    img.style.opacity=0;
-    setTimeout(function(){img.src=shots[i][1];img.alt=shots[i][0]+" screenshot";cap.textContent=shots[i][2];img.onload=function(){img.style.opacity=1};img.style.opacity=1},180);
+    var sh=shots[i];img.style.opacity=0;pins.innerHTML="";
+    setTimeout(function(){img.src=sh.f;img.alt=sh.n+" screenshot";cap.textContent=sh.c;img.style.opacity=1;
+      sh.p.forEach(function(p,k){var b=document.createElement("button");b.className="pin";b.type="button";b.textContent=k+1;b.style.left=p[0]+"%";b.style.top=p[1]+"%";b.setAttribute("aria-expanded","false");b.setAttribute("aria-label",p[2]+": "+p[3]);
+        b.onclick=function(e){e.stopPropagation();var open=b.getAttribute("aria-expanded")==="true";closeTips();if(!open){b.setAttribute("aria-expanded","true");var t=document.createElement("div");t.className="tip";t.innerHTML="<b>"+p[2]+"</b>"+p[3];t.style.left=Math.min(Math.max(p[0],14),86)+"%";t.style.top=p[1]+"%";pins.appendChild(t)}};
+        pins.appendChild(b)})},160);
   }
-  shots.forEach(function(s,i){var b=document.createElement("button");b.className="tab";b.setAttribute("role","tab");b.textContent=s[0];b.onclick=function(){pick(i)};tabs.appendChild(b)});
+  function closeTips(){Array.prototype.forEach.call(pins.querySelectorAll(".tip"),function(t){t.remove()});Array.prototype.forEach.call(pins.querySelectorAll(".pin"),function(b){b.setAttribute("aria-expanded","false")})}
+  box.addEventListener("click",function(e){if(!e.target.closest(".pin")&&!e.target.closest(".zoomhint"))openLb()});
+  shots.forEach(function(s2,i){var b=document.createElement("button");b.className="tab";b.setAttribute("role","tab");b.textContent=s2.n;b.onclick=function(){pick(i)};tabs.appendChild(b)});
   pick(0);
+
+  // 3D tilt + glare on every .tilt
+  var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(!reduce)document.querySelectorAll(".tilt").forEach(function(t){
+    t.addEventListener("pointermove",function(e){if(e.pointerType==="touch")return;var r=t.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;
+      t.style.setProperty("--ry",((x-.5)*7).toFixed(2)+"deg");t.style.setProperty("--rx",((.5-y)*5).toFixed(2)+"deg");t.style.setProperty("--gx",(x*100)+"%");t.style.setProperty("--gy",(y*100)+"%")});
+    t.addEventListener("pointerleave",function(){t.style.setProperty("--rx","0deg");t.style.setProperty("--ry","0deg")});
+  });
+
+  // lightbox with zoom and pan
+  var lb=document.createElement("div");lb.className="lb";lb.setAttribute("role","dialog");lb.setAttribute("aria-modal","true");lb.setAttribute("aria-label","Screenshot viewer");
+  lb.innerHTML='<div class="stage2" id="lbstage"><img id="lbimg" alt="" draggable="false" /></div><div class="lbbar"><button id="lbprev" aria-label="Previous">\u2190</button><span id="lbcap"></span><button id="lbnext" aria-label="Next">\u2192</button><button id="lbclose">Close (Esc)</button></div>';
+  document.body.appendChild(lb);
+  var stage=document.getElementById("lbstage"),lbimg=document.getElementById("lbimg"),lbcap=document.getElementById("lbcap");
+  function openLb(){lb.classList.add("open");document.body.style.overflow="hidden";showLb()}
+  function closeLb(){lb.classList.remove("open");stage.classList.remove("zoomed");document.body.style.overflow=""}
+  function showLb(){stage.classList.remove("zoomed");lbimg.style.removeProperty("--tx");lbimg.style.removeProperty("--ty");lbimg.src=shots[cur].f;lbcap.textContent=shots[cur].n+" ("+(cur+1)+"/"+shots.length+") \u00b7 click to zoom"}
+  function step(d){pick((cur+d+shots.length)%shots.length);showLb()}
+  document.getElementById("openlb").onclick=function(e){e.stopPropagation();openLb()};
+  document.getElementById("lbclose").onclick=closeLb;document.getElementById("lbprev").onclick=function(){step(-1)};document.getElementById("lbnext").onclick=function(){step(1)};
+  lb.addEventListener("click",function(e){if(e.target===lb)closeLb()});
+  stage.addEventListener("click",function(){stage.classList.toggle("zoomed")});
+  stage.addEventListener("pointermove",function(e){if(!stage.classList.contains("zoomed"))return;var r=stage.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;
+    lbimg.style.setProperty("--tx",(-(x*(2880-r.width))-r.width*0)+"px");lbimg.style.setProperty("--ty",(-(y*(1800-r.height)))+"px");lbimg.style.left="0";lbimg.style.top="0"});
+  stage.addEventListener("pointerleave",function(){});
+  document.addEventListener("keydown",function(e){if(!lb.classList.contains("open"))return;if(e.key==="Escape")closeLb();if(e.key==="ArrowRight")step(1);if(e.key==="ArrowLeft")step(-1)});
+  document.addEventListener("click",function(e){if(!e.target.closest("#pins"))closeTips()});
+
+  // hero: the Asha cursor becomes yours while you hover the canvas
+  var hc=document.getElementById("heroCanvas"),mc=document.getElementById("myCursor");
+  if(hc&&mc&&!reduce){hc.addEventListener("pointerenter",function(){mc.classList.add("mine")});
+    hc.addEventListener("pointermove",function(e){var r=hc.getBoundingClientRect();mc.style.left=((e.clientX-r.left)/r.width*100)+"%";mc.style.top=((e.clientY-r.top)/r.height*100)+"%"});
+    hc.addEventListener("pointerleave",function(){mc.classList.remove("mine");mc.style.left="";mc.style.top=""})}
 
   // copy buttons
   document.querySelectorAll(".copy").forEach(function(b){b.addEventListener("click",function(){
