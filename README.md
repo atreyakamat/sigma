@@ -22,6 +22,11 @@ build command and the root as the publish directory.
 python3 -m http.server 8080
 ```
 
+## Custom domain
+
+If you host on your own domain, update the three absolute URLs in `index.html` (`og:url`, `og:image`,
+`twitter:image`, `canonical`) to that domain so social previews resolve.
+
 ## Maintenance
 
 - Screenshots in `assets/` are copied from `docs/images/` on `main` (regenerate with `pnpm screenshots`).
